@@ -1,0 +1,508 @@
+---
+title: Geographic Map
+description: Interactive map visualization with weighted arcs, cost mode, and color-by grouping
+---
+
+The Geographic Map uses **Leaflet** to display your network data spatially, showing directional arcs between origin and destination coordinates with customizable styling, interactive legends, and a unique **cost mode** that factors distance into connection importance.
+
+## Overview
+
+Key features of the geographic visualization:
+- **Leaflet-based** interactive map with pan/zoom
+- **Dashed arcs** connecting origins to destinations
+- **Node shapes** distinguish origins (circles), destinations (squares), and bidirectional nodes (diamonds)
+- **Color-by field** for grouping nodes by any column
+- **Cost mode** where arc width = distance × weight
+- **Interactive legends** for filtering by color groups
+- **Detailed popups** showing referrals by origin/destination with percentages
+
+<Info>
+  The map requires latitude/longitude columns in your dataset. You can provide coordinates for origins, destinations, or both.
+</Info>
+
+## When to Use
+
+Use the Geographic Map when:
+- Your data contains spatial information (lat/lng coordinates)
+- You want to understand geographic distribution of referrals
+- Distance matters—see how far connections travel
+- You need to identify regional clusters or patterns
+- You want to compare cost (distance × weight) vs. raw weight
+
+<Note>
+  Nodes without coordinates won't appear on the map. Check the statistics line to see how many links are georeferenced.
+</Note>
+
+## Setup Requirements
+
+### Coordinate Columns
+
+In the header configuration, specify lat/lng columns:
+
+```javascript
+// State variables - app.js:14-17
+originLatCol: '',   // Latitude for origin nodes
+originLngCol: '',   // Longitude for origin nodes
+destLatCol: '',     // Latitude for destination nodes
+destLngCol: '',     // Longitude for destination nodes
+```
+
+<Tabs>
+  <Tab title="Full coordinates">
+    Provide all 4 columns for complete spatial accuracy
+  </Tab>
+  <Tab title="Origins only">
+    Only origin lat/lng: arcs won't draw (no destination coords)
+  </Tab>
+  <Tab title="Destinations only">
+    Only dest lat/lng: arcs won't draw (no origin coords)
+  </Tab>
+  <Tab title="Mixed">
+    Arcs only appear when BOTH endpoints have coordinates
+  </Tab>
+</Tabs>
+
+### Coordinate Extraction
+
+The system extracts coordinates once when columns are set:
+
+```javascript
+// Extraction logic - app.js:1619-1676
+function extractNodeCoordinates() {
+    const hasOriginCoords = appState.originLatCol && appState.originLngCol;
+    const hasDestCoords = appState.destLatCol && appState.destLngCol;
+    
+    appState.nodeCoordinates.clear();
+    appState.nodesWithOriginCoords = new Set();
+    appState.nodesWithDestCoords = new Set();
+    
+    appState.rows.forEach(row => {
+        const originNode = String(row[appState.originCol] ?? '').trim();
+        const destNode = String(row[appState.destCol] ?? '').trim();
+        
+        // Extract origin coordinates
+        if (hasOriginCoords && originNode) {
+            const originLat = parseFloat(row[appState.originLatCol]);
+            const originLng = parseFloat(row[appState.originLngCol]);
+            if (!isNaN(originLat) && !isNaN(originLng)) {
+                appState.nodesWithOriginCoords.add(originNode);
+                appState.nodeCoordinates.set(originNode, { lat: originLat, lng: originLng });
+            }
+        }
+        
+        // Extract destination coordinates
+        if (hasDestCoords && destNode) {
+            const destLat = parseFloat(row[appState.destLatCol]);
+            const destLng = parseFloat(row[appState.destLngCol]);
+            if (!isNaN(destLat) && !isNaN(destLng)) {
+                appState.nodesWithDestCoords.add(destNode);
+                appState.nodeCoordinates.set(destNode, { lat: destLat, lng: destLng });
+            }
+        }
+    });
+}
+```
+
+## Key Features
+
+### Cost Mode
+
+**Cost mode** changes arc width from raw weight to **distance × weight**:
+
+```javascript
+// Cost calculation - app.js:1890-1912
+function haversineDist(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Earth radius in km
+    const toRad = v => v * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const useCost = appState.mapCostMode;
+const edgeMetric = new Map();
+filteredEdges.forEach(edge => {
+    const from = appState.nodeCoordinates.get(edge.source);
+    const to = appState.nodeCoordinates.get(edge.target);
+    let metric = edge.value || 1;
+    if (useCost && from && to) {
+        const dist = haversineDist(from.lat, from.lng, to.lat, to.lng);
+        metric = dist * (edge.value || 1);  // Distance × weight
+    }
+    edgeMetric.set(`${edge.source}|${edge.target}`, metric);
+});
+```
+
+<Info>
+  In cost mode, a high-weight short-distance connection may have **less visual prominence** than a low-weight long-distance connection, reflecting the true "cost" of the relationship.
+</Info>
+
+<Steps>
+  <Step title="Toggle cost mode">
+    Click the **Cost** button in the toolbar (turns blue when active)
+  </Step>
+  <Step title="Arc widths update">
+    Arcs now reflect distance × weight, not just weight
+  </Step>
+  <Step title="Node sizes update">
+    Node sizes also incorporate cost metric
+  </Step>
+  <Step title="Popups show cost">
+    Hover popups display "Cost (dist×wt)" column
+  </Step>
+</Steps>
+
+### Arc Width Scaling
+
+```javascript
+// Width calculation - app.js:1963-1965
+const lineWidth = useCost
+    ? 2 + (metric / maxMetric) * 38      // Cost mode: 2-40px
+    : 4 + (weight / maxWeight) * 36;     // Normal mode: 4-40px
+```
+
+Arcs have an **invisible hitbox** (minimum 18px) for easy clicking, even when visually thin.
+
+### Node Shapes by Role
+
+Node shapes indicate network role:
+
+```javascript
+// Shape logic - app.js:1991-2061
+const isOrigin = originNodes.has(nodeName);   // Sends referrals
+const isDest = destNodes.has(nodeName);       // Receives referrals
+
+if (isOrigin && isDest) {
+    // Diamond: both origin and destination
+    const svg = `<svg>...<polygon points="diamond"/>...</svg>`;
+    marker = L.marker([lat, lng], { icon: L.divIcon({ html: svg }) });
+} else if (isDest) {
+    // Square: destination only
+    const svg = `<svg>...<rect/>...</svg>`;
+    marker = L.marker([lat, lng], { icon: L.divIcon({ html: svg }) });
+} else {
+    // Circle: origin only
+    marker = L.circleMarker([lat, lng], { radius, fillColor: color });
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="Circle" icon="circle">
+    **Origin nodes**
+    
+    Send referrals out
+  </Card>
+  <Card title="Square" icon="square">
+    **Destination nodes**
+    
+    Receive referrals in
+  </Card>
+  <Card title="Diamond" icon="diamond">
+    **Both directions**
+    
+    Act as origin AND destination
+  </Card>
+</CardGroup>
+
+### Color-By Field
+
+Group nodes by any column in your dataset:
+
+```javascript
+// Color-by logic - app.js:1815-1843
+const colorCol = appState.mapColorCol;
+let nodeColorMap = null;
+let colorGroups = [];
+
+if (colorCol) {
+    nodeColorMap = new Map();
+    
+    // Assign color group to each node
+    appState.rows.forEach(row => {
+        const originNode = String(row[appState.originCol] ?? '').trim();
+        const destNode = String(row[appState.destCol] ?? '').trim();
+        const val = String(row[colorCol] ?? '').trim();
+        if (originNode && !nodeColorMap.has(originNode)) nodeColorMap.set(originNode, val);
+        if (destNode && !nodeColorMap.has(destNode)) nodeColorMap.set(destNode, val);
+    });
+    
+    // Build color scale
+    colorGroups = Array.from(new Set(nodeColorMap.values())).sort();
+    const groupColorScale = d3.scaleOrdinal()
+        .domain(colorGroups)
+        .range(colorPalette);
+    
+    colorScale = (nodeName) => groupColorScale(nodeColorMap.get(nodeName) || '');
+}
+```
+
+<Tabs>
+  <Tab title="No color-by">
+    Default: Each node gets a unique color from d3.schemeCategory10
+  </Tab>
+  <Tab title="Color-by selected">
+    Nodes are grouped and colored by the selected column's values
+  </Tab>
+  <Tab title="Legend appears">
+    Interactive legend in bottom-right shows groups with click-to-filter
+  </Tab>
+</Tabs>
+
+### Interactive Color Legend
+
+When a color-by field is set, an interactive legend appears:
+
+```javascript
+// Legend rendering - app.js:2089-2133
+if (colorCol && colorGroups.length > 0) {
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'map-color-legend');
+        
+        // Title with clear button if filtered
+        const titleRow = `<span>${colorCol}</span>` + 
+            (legendFilter ? '<span class="map-legend-clear">✕ clear</span>' : '');
+        
+        // Group rows
+        colorGroups.forEach(g => {
+            const isActive = legendFilter === g;
+            const opacity = legendFilter && !isActive ? '0.35' : '1';
+            const row = `<div onclick="filterByGroup('${g}')" style="opacity:${opacity}">
+                <span style="background:${color}"></span>
+                <span>${g || '(empty)'}</span>
+            </div>`;
+        });
+        
+        return div;
+    };
+    legend.addTo(mapInstance);
+}
+```
+
+<Steps>
+  <Step title="Click a group">
+    Map filters to show only nodes and edges related to that group
+  </Step>
+  <Step title="Active group highlights">
+    Selected group shown in bold, others dimmed (35% opacity)
+  </Step>
+  <Step title="Click clear">
+    "✕ clear" button appears when filtered—click to restore all data
+  </Step>
+  <Step title="Click again to deselect">
+    Clicking the active group also clears the filter
+  </Step>
+</Steps>
+
+### Legend Filter Behavior
+
+When a legend group is selected:
+
+```javascript
+// Legend filter - app.js:1857-1878
+const legendFilter = appState.mapLegendFilter;
+if (legendFilter && nodeColorMap) {
+    // Nodes in the selected group
+    const groupNodes = new Set(
+        Array.from(nodeColorMap.entries())
+            .filter(([n, g]) => g === legendFilter)
+            .map(([n]) => n)
+    );
+    
+    // Show only edges whose TARGET belongs to the group
+    filteredEdges = filteredEdges.filter(e => groupNodes.has(e.target));
+    
+    // Origins connected to this group (shown even if not in group)
+    const connectedOrigins = new Set(filteredEdges.map(e => e.source));
+    
+    // Force all shown nodes to the group's color
+    const forcedColor = dummyScale(legendFilter);
+    colorScale = (nodeName) => {
+        if (groupNodes.has(nodeName) || connectedOrigins.has(nodeName)) return forcedColor;
+        return originalColorScale(nodeName);
+    };
+}
+```
+
+<Info>
+  Legend filtering shows the "network feeding into" the selected destination group, including origins that aren't part of the group.
+</Info>
+
+### Detailed Popups
+
+Node popups show comprehensive connection details:
+
+```javascript
+// Popup generation - app.js:1995-2037
+let popupHtml = '';
+const outEdges = outEdgesBySource.get(nodeName);
+const inEdges = inEdgesByTarget.get(nodeName);
+
+// Outgoing section (if origin)
+if (outEdges && outEdges.length > 0) {
+    const sorted = outEdges.slice().sort((a, b) => b.value - a.value);
+    const totalSent = sorted.reduce((s, e) => s + e.value, 0);
+    const totalCostSent = sorted.reduce((s, e) => s + edgeMetric.get(...), 0);
+    
+    popupHtml += `<div><strong>${nodeName}</strong><br/>
+        Total sent: ${totalSent} · Cost sent: ${totalCostSent}</div>
+        <table>
+            <tr><th>Dest</th><th>Weight</th><th>Cost</th><th>%</th></tr>
+            ${sorted.map(e => `<tr><td>${e.target}</td><td>${e.value}</td><td>${cost}</td><td>${pct}%</td></tr>`)}
+        </table>`;
+}
+
+// Incoming section (if destination)
+if (inEdges && inEdges.length > 0) {
+    // Similar table for incoming edges
+}
+```
+
+<Tabs>
+  <Tab title="Hover arc">
+    Shows: origin → destination, referrals, distance, cost (if cost mode)
+  </Tab>
+  <Tab title="Click node">
+    Opens popup with:
+    - Total sent/received
+    - Table of all connections sorted by weight
+    - Percentages of total
+    - Cost values (if cost mode enabled)
+  </Tab>
+</Tabs>
+
+## Interactive Controls
+
+<CardGroup cols={2}>
+  <Card title="Origin Filter" icon="filter">
+    Show only arcs from selected origin
+  </Card>
+  <Card title="Destination Filter" icon="filter">
+    Show only arcs to selected destination
+  </Card>
+  <Card title="Color by" icon="palette">
+    Group nodes by any column in your dataset
+  </Card>
+  <Card title="Cost Mode" icon="calculator">
+    Toggle between weight and distance×weight for arc width
+  </Card>
+</CardGroup>
+
+### Map Navigation
+
+- **Drag**: Pan the map
+- **Mouse wheel**: Zoom in/out
+- **Auto-fit**: On first render, map automatically fits all markers with padding
+- **Reuse view**: When filters change, map preserves your zoom/pan position
+
+```javascript
+// Map initialization - app.js:1789-1812
+if (mapInstance) {
+    // Reuse existing map to preserve view
+    mapInstance.eachLayer(layer => {
+        if (!(layer instanceof L.TileLayer)) mapInstance.removeLayer(layer);
+    });
+} else {
+    // First render: create map and fit bounds
+    mapInstance = L.map(container);
+    const bounds = L.latLngBounds(coordsArray.map(c => [c.lat, c.lng]));
+    mapInstance.fitBounds(bounds, { padding: [30, 30] });
+    
+    // CartoDB light basemap
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO'
+    }).addTo(mapInstance);
+}
+```
+
+## Statistics Display
+
+The toolbar and panel show georeferencing statistics:
+
+```javascript
+// Statistics - app.js:2069-2087
+const totalEdges = appState.aggregatedEdges.length;
+const displayedNodes = markers.length;
+const displayedLinks = edgesDrawn;
+const missingCoords = totalEdges - displayedLinks;
+
+const statsText = `Georeferenced: ${displayedNodes} nodes · ${displayedLinks}/${totalEdges} links` +
+    (missingCoords > 0 ? ` (${missingCoords} without coordinates)` : '');
+```
+
+<Info>
+  If you see many links without coordinates, check that your lat/lng columns are correctly configured and contain valid numeric values.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Data preparation">
+    - Ensure lat/lng columns contain decimal degree values (e.g., 40.7128, -74.0060)
+    - Remove or handle missing coordinates before uploading
+    - If nodes appear in multiple rows with different coords, only the first coord encountered is used
+  </Accordion>
+  
+  <Accordion title="Visual optimization">
+    - Use **origin/dest filters** to declutter dense maps
+    - Enable **cost mode** to emphasize long-distance connections
+    - Use **color-by** + legend filter to focus on specific groups
+    - Zoom in on regions of interest before screenshotting
+  </Accordion>
+  
+  <Accordion title="Interpretation">
+    - **Large circles/squares** = high-traffic nodes
+    - **Thick arcs** = strong connections (or high cost in cost mode)
+    - **Geographic clusters** = regional referral patterns
+    - **Long arcs** = cross-region relationships
+    - **Diamonds** = nodes acting as intermediaries
+  </Accordion>
+  
+  <Accordion title="Cost mode insights">
+    - Reveals "expensive" relationships (high distance × weight)
+    - Useful for logistics/supply chain optimization
+    - Highlights when local connections might be underutilized
+    - Compare normal vs. cost mode to see distance impact
+  </Accordion>
+</AccordionGroup>
+
+## Tile Layer
+
+The map uses CartoDB's light basemap:
+
+```javascript
+// Basemap - app.js:1806-1810
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 20
+}).addTo(mapInstance);
+```
+
+This provides a clean, neutral background that doesn't compete with your data.
+
+## Performance Considerations
+
+- **Map reuse**: The map instance is preserved when filters change, avoiding re-initialization
+- **Invisible hitboxes**: Arcs have wide invisible overlays (18px) for easy clicking
+- **Layer management**: Only data layers are redrawn; tile layer persists
+- **Lazy rendering**: Arcs only drawn if both endpoints have appropriate coordinates
+
+```javascript
+// Draw condition - app.js:1953-1959
+if (fromCoords && toCoords && 
+    srcHasOwnCoords.has(edge.source) && 
+    tgtHasOwnCoords.has(edge.target)) {
+    // Draw arc
+} else {
+    // Skip this edge
+}
+```
+
+## Related Visualizations
+
+- [Sankey Diagram](/visualizations/sankey) - Flow-based non-spatial view
+- [Network Graph](/visualizations/network) - Force-directed topology view
+- [Ego Networks](/visualizations/ego-networks) - Focused neighborhood comparison

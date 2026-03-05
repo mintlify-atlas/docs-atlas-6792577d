@@ -1,0 +1,224 @@
+---
+title: Introduction
+description: Network Analysis is a client-side web application for visualizing and analyzing network relationships from Excel data
+---
+
+## What is Network Analysis?
+
+Network Analysis is a powerful, client-side web application that transforms Excel spreadsheet data into interactive network visualizations. Whether you're analyzing referral networks, organizational hierarchies, supply chains, or any origin-destination relationships, this tool helps you understand complex network patterns without requiring any backend infrastructure or data processing servers.
+
+<Note>
+  **Client-side processing means:**
+  - Your data never leaves your browser
+  - No server uploads required
+  - Works offline (after initial library load)
+  - Fast, instant processing
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multiple Visualizations" icon="chart-network">
+    Four distinct visualization types: Sankey diagrams, gravitational networks, ego networks, and geographic maps - all from the same dataset
+  </Card>
+  
+  <Card title="Excel Integration" icon="file-excel">
+    Direct import of `.xlsx` files with automatic column detection and mapping
+  </Card>
+  
+  <Card title="Interactive Controls" icon="sliders">
+    Real-time filtering, zoom controls, Top-N selection, and cost analysis features
+  </Card>
+  
+  <Card title="Zero Backend" icon="browser">
+    Pure vanilla JavaScript - no installation, no build process, just open and run
+  </Card>
+</CardGroup>
+
+## Visualization Types
+
+### Sankey Diagram
+
+Flow-based visualization showing the volume of connections between nodes. Perfect for understanding the overall distribution and major pathways in your network.
+
+**Technology:** D3.js + d3-sankey
+
+**Features:**
+- Proportional link widths based on weight
+- Origin and destination filtering
+- Top-N control to focus on strongest connections
+- Interactive node selection to highlight connected paths
+- Pan and zoom navigation
+
+### Gravitational Network
+
+Force-directed graph layout with physics-based positioning. Nodes and edges scale by weight, making it easy to identify hubs and important connections.
+
+**Technology:** vis-network
+
+**Features:**
+- Physics-based layout with force simulation
+- Node size scaled by connection weight
+- Edge thickness represents relationship strength
+- Interactive dragging and repositioning
+- Filter by origin/destination
+
+### Ego Networks
+
+Compare up to four destination nodes side-by-side, showing their immediate network neighborhoods. Ideal for analyzing specific entities and their relationships.
+
+**Technology:** vis-network (4 independent instances)
+
+**Features:**
+- Simultaneous comparison of 4 nodes
+- Shows incoming and outgoing connections
+- Neighbor statistics and edge counts
+- Individual zoom and interaction per panel
+
+### Geographic Map
+
+Spatial visualization of network connections using latitude/longitude coordinates. See the physical distribution and distance-based analysis of your network.
+
+**Technology:** Leaflet
+
+**Features:**
+- Arc-based connection rendering
+- Optional coordinate columns for origin and destination
+- Color coding by custom column values
+- Cost mode: line width = distance × weight
+- Interactive map controls
+
+## Technology Stack
+
+Network Analysis uses a modern, lightweight stack with zero dependencies beyond CDN-loaded libraries:
+
+```javascript
+// Core Libraries (loaded via CDN)
+- SheetJS (XLSX) 0.18.5  // Excel file parsing
+- D3.js v7                // Data visualization
+- d3-sankey 0.12.3        // Sankey diagram layout
+- vis-network             // Network graphs
+- Leaflet 1.9.4           // Geographic maps
+```
+
+<Note>
+All libraries are loaded from CDN, so an internet connection is required for the initial page load. Once cached, the application can process files offline.
+</Note>
+
+## How It Works
+
+The application follows a simple data flow:
+
+<Steps>
+  <Step title="Load Excel File">
+    User selects a `.xlsx` file. SheetJS parses it client-side and extracts headers and rows.
+  </Step>
+  
+  <Step title="Map Columns">
+    Select which columns represent Origin, Destination, and optionally Weight and geographic coordinates.
+  </Step>
+  
+  <Step title="Process Data">
+    The app aggregates edges (origin-destination pairs), counts frequencies, and builds adjacency indices.
+  </Step>
+  
+  <Step title="Visualize">
+    Switch between visualization tabs. Each updates dynamically based on filters and controls.
+  </Step>
+</Steps>
+
+### Data Processing
+
+When you map columns, the application:
+
+1. **Aggregates edges** - Combines duplicate origin-destination pairs and sums their weights
+2. **Builds indices** - Creates fast lookup maps for outgoing and incoming connections
+3. **Calculates statistics** - Computes total nodes, edges, and weight distributions
+4. **Renders visualizations** - Updates all active views with processed data
+
+From `app.js:339-378`:
+
+```javascript
+function processAggregatedEdges() {
+    const { originCol, destCol, weightCol, rows } = appState;
+    
+    const edgesMap = new Map();
+
+    rows.forEach(row => {
+        const source = String(row[originCol] ?? '').trim();
+        const target = String(row[destCol] ?? '').trim();
+        
+        if (!source || !target) return;
+
+        const key = `${source}|${target}`;
+        const weight = weightCol ? parseFloat(row[weightCol]) || 1 : 1;
+
+        if (edgesMap.has(key)) {
+            const edge = edgesMap.get(key);
+            edge.value += weight;
+            edge.count += 1;
+        } else {
+            edgesMap.set(key, {
+                source,
+                target,
+                value: weight,
+                count: 1
+            });
+        }
+
+        appState.uniqueNodes.add(source);
+        appState.uniqueNodes.add(target);
+    });
+
+    appState.aggregatedEdges = Array.from(edgesMap.values());
+    buildIndices();
+}
+```
+
+## Browser Requirements
+
+Network Analysis requires a modern browser with:
+
+- ES2017+ support (`async/await`, `Map`, `Set`, template literals)
+- HTML5 Canvas support
+- SVG support
+- FileReader API for local file access
+
+**Recommended browsers:**
+- Chrome 60+
+- Firefox 55+
+- Safari 11+
+- Edge 79+
+
+<Warning>
+Opening `index.html` directly with `file://` protocol may fail due to CORS restrictions when loading CDN libraries. Always use a local web server (see Quickstart).
+</Warning>
+
+## Use Cases
+
+**Referral Networks**
+Track how customers or leads flow through your organization, identifying top referrers and bottlenecks.
+
+**Supply Chain Analysis**
+Visualize supplier-to-customer relationships, shipping routes, or inventory flows.
+
+**Organizational Charts**
+Map reporting structures, project dependencies, or team collaboration patterns.
+
+**Geographic Distribution**
+Analyze spatial patterns in your data when origin/destination locations are available.
+
+**Social Network Analysis**
+Explore connections, influence patterns, and community structures in social data.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Get started in 5 minutes with your first visualization
+  </Card>
+  
+  <Card title="View on GitHub" icon="github" href="https://github.com/moafar/network-analysis">
+    Explore the source code and contribute
+  </Card>
+</CardGroup>

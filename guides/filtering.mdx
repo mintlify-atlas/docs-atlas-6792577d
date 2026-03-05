@@ -1,0 +1,388 @@
+---
+title: 'Filtering & Controls'
+description: 'Master the filtering and control features available in each visualization'
+icon: 'filter'
+---
+
+## Overview
+
+Each visualization in Network Analysis includes interactive filters and controls tailored to its specific type. This guide covers all available filtering options across the four visualization tabs.
+
+<Note>
+  Filters are **visualization-specific**—changing a filter in the Sankey tab does not affect the Network or Map tabs. Each maintains its own independent state.
+</Note>
+
+## Sankey Diagram Filters
+
+The **Sankey** tab provides the most comprehensive filtering options for flow analysis.
+
+### Visualization Toolbar
+
+Located directly below the tab header, the Sankey toolbar includes:
+
+<Accordion title="Top-N Slider">
+  **Purpose**: Limit the number of edges displayed to reduce visual clutter
+  
+  **Range**: 5 to 500 edges  
+  **Default**: 50 edges
+  
+  **Behavior**:
+  - Edges are ranked by weight (highest to lowest)
+  - Only the top N edges are displayed
+  - The live count updates as you move the slider
+  
+  **Example**:
+  ```plaintext
+  Top-N: [────●────] 75
+  Links: 75/342 · Displayed weight: 12,450 / 15,890
+  ```
+  
+  <Note>
+    Use this to focus on the most significant flows in your network.
+  </Note>
+</Accordion>
+
+<Accordion title="Origin Filter">
+  **Purpose**: Show only edges originating from a specific node
+  
+  **Options**: Dropdown populated with all unique origin nodes, plus "All"
+  
+  **Example use case**:
+  - Select "Alice" to see only referrals made by Alice
+  - Select "Warehouse A" to see only shipments from Warehouse A
+  
+  <Warning>
+    Combining Origin and Destination filters may result in very few (or zero) visible edges if no connections exist between them.
+  </Warning>
+</Accordion>
+
+<Accordion title="Destination Filter">
+  **Purpose**: Show only edges terminating at a specific node
+  
+  **Options**: Dropdown populated with all unique destination nodes, plus "All"
+  
+  **Example use case**:
+  - Select "Bob" to see all sources that referred Bob
+  - Select "Store B" to see all suppliers shipping to Store B
+</Accordion>
+
+### Zoom Controls
+
+The Sankey visualization supports pan and zoom:
+
+```plaintext
+[+] [-] [Reset]
+```
+
+- **+**: Zoom in (scale × 1.2)
+- **−**: Zoom out (scale × 0.833)
+- **Reset**: Return to default view
+
+**Additional interactions**:
+- **Mouse wheel**: Zoom in/out
+- **Click + drag**: Pan the diagram (when not clicking on nodes)
+- **Click node**: Highlight connected edges and nodes
+- **Click background**: Deselect and restore full view
+
+### Statistics Display
+
+Two stat displays show real-time filter effects:
+
+**Toolbar stats:**
+```plaintext
+Links: 42/200 · Displayed weight: 8,340 / 15,670
+```
+
+**Bottom-right bubble:**
+```plaintext
+Displayed links: 42/200 · Displayed weight: 8,340 / 15,670
+```
+
+## Gravitational Network Filters
+
+The **Gravitational Network** tab uses similar filters to Sankey with some differences.
+
+### Visualization Toolbar
+
+<Accordion title="Top-N Edges Slider">
+  **Purpose**: Limit displayed edges to the strongest connections
+  
+  **Range**: 5 to 500 edges  
+  **Default**: 100 edges
+  
+  **Behavior**:
+  - Edges ranked by weight
+  - Physics simulation adjusts to displayed edges
+  - Node sizes scale based on their total connection weight
+  
+  <Note>
+    Network visualizations can become cluttered with too many edges. Start with a lower Top-N value and increase as needed.
+  </Note>
+</Accordion>
+
+<Accordion title="Origin & Destination Filters">
+  Same as Sankey filters:
+  - **Origin**: Filter to edges from a specific source
+  - **Destination**: Filter to edges to a specific target
+  
+  Both can be combined for narrow focus.
+</Accordion>
+
+### Zoom Controls
+
+```plaintext
+[-] [+] [Reset]
+```
+
+- **−**: Zoom out (scale × 0.8)
+- **+**: Zoom in (scale × 1.2)
+- **Reset**: Fit entire network in view
+
+**Additional interactions**:
+- **Click + drag node**: Reposition a node (physics briefly enabled)
+- **Click + drag background**: Pan the view
+- **Scroll wheel**: Zoom in/out
+- **Click node**: Highlight immediate neighbors (dims other nodes)
+- **Click background**: Restore full network
+
+### Physics Behavior
+
+<Note>
+  The network uses a Barnes-Hut force simulation:
+  - Initial render: physics runs for ~1 second to stabilize layout
+  - After stabilization: physics disabled to prevent drift
+  - During drag: physics re-enabled briefly to adjust connected nodes
+  - After drag: physics runs for 1.2 seconds then disables again
+</Note>
+
+## Ego Networks
+
+The **Ego Networks** tab provides a unique comparison view with **four independent panels**.
+
+### Panel Configuration
+
+<Steps>
+  <Step title="Select a Destination Node">
+    Each panel has a dropdown to select which node's ego-network to display
+  </Step>
+  <Step title="View Connections">
+    The panel shows all nodes connected to the selected node (1-hop neighborhood)
+  </Step>
+  <Step title="Compare Up to 4 Nodes">
+    Use multiple panels to compare different nodes side-by-side
+  </Step>
+</Steps>
+
+### Panel Statistics
+
+Each panel displays real-time stats:
+
+```plaintext
+Neighbors: 12 · Edges: 15 · Referrals: 3,420
+```
+
+- **Neighbors**: Number of unique nodes connected to the ego
+- **Edges**: Total edges in the subgraph (including ego ↔ neighbor and neighbor ↔ neighbor)
+- **Referrals**: Sum of all edge weights in the subgraph
+
+### No Global Filters
+
+<Warning>
+  The Ego Networks tab does not use the global toolbar filters—each panel is independently controlled by its dropdown.
+</Warning>
+
+### Interactions
+
+- **Click + drag node**: Reposition
+- **Scroll wheel**: Zoom in/out
+- **Hover node**: Show tooltip with referral count
+- **Physics**: Same behavior as Gravitational Network (stabilizes, disables, re-enables on drag)
+
+## Geographic Map Filters
+
+The **Map** tab offers unique filtering options relevant to geographic data.
+
+### Visualization Toolbar
+
+<Accordion title="Origin & Destination Filters">
+  Same behavior as other tabs:
+  - **Origin**: Show only edges from a specific origin
+  - **Destination**: Show only edges to a specific destination
+  
+  <Note>
+    Filtering updates both the polylines (connections) and node markers.
+  </Note>
+</Accordion>
+
+<Accordion title="Color By Field">
+  **Purpose**: Color-code nodes by any column in your dataset
+  
+  **Options**: Dropdown showing all Excel column headers, plus "-- None --"
+  
+  **Behavior**:
+  - Nodes are colored according to the selected field's value
+  - A legend appears in the bottom-right corner showing color groups
+  - Clicking a legend item filters the map to only that group
+  
+  **Example**:
+  ```plaintext
+  Color by: Region
+  
+  Legend:
+  ● East (23 nodes)
+  ● West (18 nodes)
+  ● Central (15 nodes)
+  ```
+  
+  <Note>
+    The color legend is **interactive**—click a group to filter the map to only that subset.
+  </Note>
+</Accordion>
+
+<Accordion title="Cost Mode Toggle">
+  **Purpose**: Switch edge width from weight-based to distance-cost-based
+  
+  **Button**: `[Cost]` (turns blue when active)
+  
+  **Behavior**:
+  - **Off** (default): Edge width = connection weight
+  - **On**: Edge width = (geographic distance in km) × weight
+  
+  **Use case**: Visualize transportation cost where longer distances incur higher costs
+  
+  <Warning>
+    Cost mode requires valid coordinates. Edges without coordinates are excluded.
+  </Warning>
+</Accordion>
+
+### Node Shapes
+
+Nodes are rendered with different shapes to indicate their role:
+
+```plaintext
+◯ Circle   = Origin only
+◼ Square   = Destination only  
+◆ Diamond  = Both origin and destination
+```
+
+A **shape legend** in the bottom-left corner explains these symbols.
+
+### Interactive Legend
+
+<Note>
+  When using "Color by" with a categorical field:
+  
+  1. Click a color group in the legend
+  2. Map filters to show only nodes in that group
+  3. Click "✕ clear" to restore full view
+  
+  This is useful for isolating specific regions, categories, or segments.
+</Note>
+
+### Map Interactions
+
+- **Click + drag**: Pan the map
+- **Scroll wheel**: Zoom in/out
+- **Click node**: Open popup with detailed incoming/outgoing connections
+- **Click edge**: Open popup showing origin→destination, weight, and distance
+- **Zoom controls**: Standard Leaflet zoom buttons in top-left corner
+
+### Node Popup Details
+
+Clicking a node marker shows a detailed breakdown:
+
+```html
+Alice
+Total sent: 450 · Cost sent: 2,340 km
+┌──────────┬────────┬────────┬─────┐
+│ Dest     │ Weight │ Cost   │  %  │
+├──────────┼────────┼────────┼─────┤
+│ Bob      │  200   │ 1,100  │ 44% │
+│ Carol    │  150   │  820   │ 33% │
+│ Dave     │  100   │  420   │ 23% │
+└──────────┴────────┴────────┴─────┘
+
+───────────────────────────────────
+
+Total received: 320 · Cost received: 1,890 km  
+┌──────────┬────────┬────────┬─────┐
+│ Origin   │ Weight │ Cost   │  %  │
+├──────────┼────────┼────────┼─────┤
+│ Eve      │  200   │ 1,200  │ 62% │
+│ Frank    │  120   │  690   │ 38% │
+└──────────┴────────┴────────┴─────┘
+```
+
+<Note>
+  The "Cost" column only appears when **Cost Mode** is enabled.
+</Note>
+
+## Statistics Tracking
+
+All visualizations display real-time statistics reflecting applied filters:
+
+### Sankey & Network
+
+```plaintext
+Links: [displayed] / [total]
+Displayed weight: [filtered sum] / [total sum]
+```
+
+### Map
+
+```plaintext
+Georeferenced: [nodes with coords] nodes · [displayed links] / [total links] links
+```
+
+### Ego Networks
+
+```plaintext
+[Per panel]
+Neighbors: [count] · Edges: [count] · Referrals: [sum]
+```
+
+## Filter Persistence
+
+<Warning>
+  **Filters are NOT persistent across page reloads.** If you refresh the browser, you'll need to:
+  
+  1. Reload your Excel file
+  2. Re-map columns
+  3. Re-apply filters
+  
+  This is by design—Network Analysis is a client-side tool with no backend storage.
+</Warning>
+
+## Performance Tips
+
+<Accordion title="Handling Large Datasets">
+  If your dataset has thousands of edges:
+  
+  1. **Use aggressive Top-N filtering**: Start with Top-N = 25 or 50
+  2. **Apply Origin/Destination filters**: Narrow to a specific subgraph
+  3. **Enable Cost mode on map**: Helps identify high-impact routes
+  4. **Avoid rendering all edges**: Browsers struggle with >1,000 visible elements
+  
+  <Note>
+    The Ego Networks visualization is highly efficient for exploring large graphs one node at a time.
+  </Note>
+</Accordion>
+
+## Keyboard Shortcuts
+
+While the app doesn't define global shortcuts, standard browser shortcuts work:
+
+- **F12**: Open developer console (useful for debugging)
+- **Ctrl/Cmd + R**: Reload page (clears all state)
+- **Ctrl/Cmd + 0**: Reset browser zoom (not visualization zoom)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Format" icon="table" href="/guides/data-format">
+    Understand Excel file requirements
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy your own instance
+  </Card>
+</CardGroup>

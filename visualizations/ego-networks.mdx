@@ -1,0 +1,397 @@
+---
+title: Ego Networks
+description: Compare up to 4 destination nodes' neighborhoods side-by-side
+---
+
+Ego Networks provide a **4-panel comparative view** where you can select different destination nodes and see their immediate neighborhoods (all nodes connecting to them) simultaneously.
+
+## Overview
+
+Each ego-network panel shows:
+- The **ego node** (selected destination) and its neighbors
+- All **incoming edges** (nodes connecting TO the ego)
+- All **outgoing edges** (nodes connecting FROM the ego)
+- **Inter-neighbor connections** (edges between neighbors, if they exist)
+- Real-time statistics: neighbors, edges, and total referrals
+
+<Info>
+  Ego networks are ideal for comparing how different destinations receive referrals and understanding their unique referral patterns.
+</Info>
+
+## When to Use
+
+Use Ego Networks when you need to:
+- Compare referral patterns across multiple destinations
+- Identify which origins connect to specific destinations
+- See if destinations share common referral sources
+- Analyze the structure of individual node neighborhoods
+- Understand local network topology around key nodes
+
+<Note>
+  The ego-network dropdowns are automatically populated with all unique destination values from your dataset.
+</Note>
+
+## Key Features
+
+### 4-Panel Layout
+
+Each panel operates independently:
+
+```javascript
+// Panel initialization - app.js:203-212
+const egoPlaceholder = `<option value="">-- Select destination --</option>`;
+const ego1 = document.getElementById('ego1Dest');
+const ego2 = document.getElementById('ego2Dest');
+const ego3 = document.getElementById('ego3Dest');
+const ego4 = document.getElementById('ego4Dest');
+
+if (ego1) ego1.innerHTML = egoPlaceholder;
+if (ego2) ego2.innerHTML = egoPlaceholder;
+if (ego3) ego3.innerHTML = egoPlaceholder;
+if (ego4) ego4.innerHTML = egoPlaceholder;
+```
+
+Select a destination from each dropdown to visualize its ego network.
+
+### Automatic Destination Population
+
+The destination selectors are dynamically populated from your data:
+
+```javascript
+// Population logic - app.js:298-334
+function populateEgoDestinations() {
+    const destCol = appState.destCol;
+    
+    // Extract unique destination values
+    const vals = new Set();
+    appState.rows.forEach(row => {
+        const v = String(row[destCol] ?? '').trim();
+        if (v) vals.add(v);
+    });
+    
+    // Sort alphabetically
+    const sorted = Array.from(vals).sort((a,b) => a.localeCompare(b));
+    
+    // Populate all 4 dropdowns
+    const optionsHtml = `<option value="">-- Select destination --</option>` + 
+        sorted.map(v => `<option value="${v}">${v}</option>`).join('');
+    
+    ['ego1Dest', 'ego2Dest', 'ego3Dest', 'ego4Dest'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = optionsHtml;
+    });
+}
+```
+
+### Edge Collection Strategy
+
+For each ego node, the system collects:
+
+```javascript
+// Edge collection - app.js:619-651
+const egoName = sel.value;
+const outEdges = appState.outIndex.get(egoName) || [];  // Edges FROM ego
+const inEdges = appState.inIndex.get(egoName) || [];    // Edges TO ego
+
+const neighbors = new Set();
+outEdges.forEach(e => neighbors.add(e.target));
+inEdges.forEach(e => neighbors.add(e.source));
+neighbors.add(egoName);  // Include the ego itself
+
+// Also include inter-neighbor edges for context
+appState.aggregatedEdges.forEach(e => {
+    if (neighbors.has(e.source) && neighbors.has(e.target)) {
+        if (!edgesToShow.some(x => x.source === e.source && x.target === e.target)) {
+            edgesToShow.push(e);
+        }
+    }
+});
+```
+
+<Tabs>
+  <Tab title="Incoming edges">
+    Show all origins that send referrals TO the ego destination
+  </Tab>
+  <Tab title="Outgoing edges">
+    Show all destinations that receive referrals FROM the ego (if ego also acts as origin)
+  </Tab>
+  <Tab title="Inter-neighbor">
+    Optional: edges between neighbors, providing additional context
+  </Tab>
+</Tabs>
+
+### Interactive Physics
+
+Each panel uses vis-network with custom physics optimized for small subgraphs:
+
+```javascript
+// Physics configuration - app.js:711-729
+physics: {
+    enabled: true,
+    solver: 'barnesHut',
+    barnesHut: {
+        avoidOverlap: 0,
+        centralGravity: 0.25,
+        damping: 0.45,
+        gravitationalConstant: -2800,
+        springConstant: 0.02,
+        springLength: 150
+    },
+    stabilization: {
+        enabled: true,
+        fit: true,
+        iterations: 1000,
+        onlyDynamicEdges: false,
+        updateInterval: 50
+    }
+}
+```
+
+<Steps>
+  <Step title="Initial stabilization">
+    Physics runs for up to 1000 iterations to find optimal layout
+  </Step>
+  <Step title="Auto-fit">
+    Network automatically zooms to fit all nodes
+  </Step>
+  <Step title="Physics disabled">
+    Once stable, physics turns off to prevent jitter
+  </Step>
+  <Step title="Drag behavior">
+    Dragging temporarily re-enables physics with subtle neighbor nudging
+  </Step>
+</Steps>
+
+### Node Dragging with Nudge
+
+When you drag a node, its neighbors are gently "nudged" away:
+
+```javascript
+// Drag with nudge - app.js:779-823
+net.on('dragStart', (params) => {
+    const dragged = params.nodes[0];
+    const connected = net.getConnectedNodes(dragged);
+    
+    // Get positions
+    const positions = net.getPositions([dragged, ...connected]);
+    const posDragged = positions[dragged];
+    
+    // Nudge each neighbor outward by 12px
+    connected.forEach(nei => {
+        const posNei = positions[nei];
+        let dx = posNei.x - posDragged.x;
+        let dy = posNei.y - posDragged.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const newX = posNei.x + nx * 12;
+        const newY = posNei.y + ny * 12;
+        net.moveNode(nei, newX, newY);
+    });
+    
+    // Re-enable physics temporarily
+    net.setOptions({ physics: { enabled: true } });
+});
+```
+
+This creates a natural "ripple" effect that helps untangle overlapping nodes.
+
+## Panel Statistics
+
+Each panel displays real-time metrics:
+
+```javascript
+// Statistics calculation - app.js:665-679
+const neighborCount = Math.max(0, neighbors.size - 1);  // Exclude ego itself
+const edgesCount = edgesToShow.length;
+const totalDisplayedWeight = edgesToShow.reduce((s, it) => s + (Number(it.value) || 0), 0);
+
+const statsEl = document.getElementById(`ego${panelId}Stats`);
+if (statsEl) {
+    if (neighborCount === edgesCount) {
+        // Simple case: star topology
+        statsEl.textContent = `Edges: ${edgesCount} · Referrals: ${totalDisplayedWeight.toLocaleString()}`;
+    } else {
+        // Complex: includes inter-neighbor edges
+        statsEl.textContent = `Neighbors: ${neighborCount} · Edges: ${edgesCount} · Referrals: ${totalDisplayedWeight.toLocaleString()}`;
+    }
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="Neighbors" icon="users">
+    Count of unique nodes connected to the ego (excluding ego itself)
+  </Card>
+  <Card title="Edges" icon="arrow-right-arrow-left">
+    Total number of edges shown (including inter-neighbor connections)
+  </Card>
+  <Card title="Referrals" icon="hashtag">
+    Sum of all edge weights in the subgraph
+  </Card>
+</CardGroup>
+
+## Implementation Details
+
+### Core Update Function
+
+The `updateEgoNetwork(panelId)` function (app.js:591) handles rendering:
+
+<Steps>
+  <Step title="Validate selection">
+    Check if a destination is selected; show placeholder if not
+  </Step>
+  <Step title="Extract edges">
+    Use outIndex and inIndex maps for fast lookup of connected edges
+  </Step>
+  <Step title="Build node list">
+    Collect ego + all neighbors into a Set
+  </Step>
+  <Step title="Calculate node weights">
+    Sum edge values for each node to determine size
+  </Step>
+  <Step title="Create vis-network instance">
+    Build nodes/edges arrays and initialize vis.Network
+  </Step>
+  <Step title="Setup event handlers">
+    Attach drag handlers for physics control
+  </Step>
+</Steps>
+
+### Fast Lookup Indices
+
+The app maintains precomputed indices for O(1) neighborhood queries:
+
+```javascript
+// Index construction - app.js:383-400
+function buildIndices() {
+    appState.outIndex.clear();
+    appState.inIndex.clear();
+    
+    appState.aggregatedEdges.forEach(edge => {
+        // outIndex: source -> [edges]
+        if (!appState.outIndex.has(edge.source)) {
+            appState.outIndex.set(edge.source, []);
+        }
+        appState.outIndex.get(edge.source).push(edge);
+        
+        // inIndex: target -> [edges]
+        if (!appState.inIndex.has(edge.target)) {
+            appState.inIndex.set(edge.target, []);
+        }
+        appState.inIndex.get(edge.target).push(edge);
+    });
+}
+```
+
+This enables instant ego network extraction without scanning all edges.
+
+### Node Sizing
+
+Nodes are sized based on their total involvement in the subgraph:
+
+```javascript
+// Node size - app.js:627-651
+const weightByNode = {};
+nodeList.forEach(n => weightByNode[n] = 0);
+
+edgesToShow.forEach(e => {
+    weightByNode[e.source] += Number(e.value) || 0;
+    weightByNode[e.target] += Number(e.value) || 0;
+});
+
+// Scale from 15 to 100
+const size = 15 + Math.min(85, Math.round(totalWeight));
+```
+
+### Tooltips
+
+Nodes and edges display contextual information on hover:
+
+```javascript
+// Node tooltip - app.js:688
+title: `${name}\nReferrals: ${totalWeight.toLocaleString()}`
+
+// Edge tooltip - app.js:700
+title: `${e.source} → ${e.target}\nReferrals: ${Number(e.value).toLocaleString()}`
+```
+
+## Comparative Analysis Workflow
+
+<AccordionGroup>
+  <Accordion title="Identify common sources">
+    Select 2-4 destinations and look for nodes that appear in multiple panels. These are shared referral sources.
+  </Accordion>
+  
+  <Accordion title="Compare network density">
+    - **Sparse networks**: Few neighbors, simple structure
+    - **Dense networks**: Many neighbors, complex interconnections
+    - Check the "Neighbors" count in each panel's statistics
+  </Accordion>
+  
+  <Accordion title="Spot dominant origins">
+    Look for large nodes within each ego network—these origins contribute the most referrals to that destination.
+  </Accordion>
+  
+  <Accordion title="Detect exclusive relationships">
+    Nodes appearing in only one panel represent exclusive referral sources for that destination.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Card title="Selection strategy" icon="hand-pointer">
+  - Start by selecting 2 destinations you want to compare directly
+  - Look for interesting patterns (shared neighbors, size differences)
+  - Add 2 more destinations to expand the comparison
+  - Use destinations from different "tiers" (high vs. low referrals)
+</Card>
+
+<Card title="Interaction tips" icon="mouse-pointer">
+  - **Hover over nodes**: See referral totals
+  - **Hover over edges**: See origin → destination details
+  - **Drag nodes**: Rearrange for clarity (physics will settle)
+  - **Zoom/pan**: Each panel has independent zoom controls
+</Card>
+
+<Card title="Interpretation" icon="lightbulb">
+  - **Large ego networks** = popular destinations with diverse sources
+  - **Small ego networks** = niche destinations with few sources
+  - **Overlapping neighbors** = origins serving multiple destinations
+  - **Star topology** = ego network with no inter-neighbor edges
+</Card>
+
+## Performance Notes
+
+- Each panel maintains its own vis.Network instance (stored in `window.egoNetworkInstances`)
+- Physics is disabled after stabilization to reduce CPU usage
+- Only relevant nodes and edges are rendered (filtered subgraph)
+- Drag operations temporarily enable physics, then disable after 1.2 seconds
+
+```javascript
+// Instance management - app.js:745-749
+if (!window.egoNetworkInstances) window.egoNetworkInstances = {};
+if (window.egoNetworkInstances[panelId]) {
+    window.egoNetworkInstances[panelId].destroy();
+    delete window.egoNetworkInstances[panelId];
+}
+```
+
+## No Toolbar Controls
+
+Unlike other visualizations, Ego Networks have **no toolbar**—all control happens via the dropdown selectors within each panel:
+
+```javascript
+// Toolbar hidden for ego tab - app.js:543-548
+else if (tabName === 'ego') {
+    toolbar.classList.add('hidden');
+    toolbar.innerHTML = '';
+}
+```
+
+This keeps the interface clean and focuses attention on the 4-panel comparison.
+
+## Related Visualizations
+
+- [Network Graph](/visualizations/network) - See the full network with all connections
+- [Sankey Diagram](/visualizations/sankey) - Flow-based view from origins to destinations
+- [Geographic Map](/visualizations/geographic-map) - Spatial distribution of connections

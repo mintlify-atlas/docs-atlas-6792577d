@@ -1,0 +1,185 @@
+---
+title: 'Excel Data Format'
+description: 'Learn about the required Excel file structure and data requirements for Network Analysis'
+icon: 'table'
+---
+
+## Overview
+
+Network Analysis processes **Excel (.xlsx) files** entirely in your browser using the SheetJS library. No data is sent to a server—all processing happens client-side.
+
+## File Requirements
+
+<Note>
+  Your Excel file must have **headers in the first row**. Each subsequent row represents a relationship or transaction.
+</Note>
+
+### Required Columns
+
+At minimum, your spreadsheet must contain:
+
+1. **Origin column** — The source node (e.g., referrer, sender, origin location)
+2. **Destination column** — The target node (e.g., referred person, recipient, destination)
+
+These columns can have any name—you'll select them from dropdowns after loading the file.
+
+### Optional Columns
+
+<Accordion title="Weight Column">
+  If your data includes a numeric weight/value for each relationship:
+  - Select a **Weight** column from the dropdown
+  - Values will be summed when aggregating duplicate origin→destination pairs
+  
+  **If no weight column is selected:**
+  - The app automatically counts the frequency of each origin→destination pair
+  - Each row contributes a weight of 1
+</Accordion>
+
+<Accordion title="Coordinate Columns (for Map Visualization)">
+  To enable the Geographic Map visualization, provide latitude/longitude columns:
+  
+  **Origin coordinates:**
+  - Origin Lat (numeric latitude)
+  - Origin Lng (numeric longitude)
+  
+  **Destination coordinates:**
+  - Dest Lat (numeric latitude)
+  - Dest Lng (numeric longitude)
+  
+  <Note>
+    You can provide coordinates for origins only, destinations only, or both. The map will draw connections between nodes that have valid coordinates.
+  </Note>
+</Accordion>
+
+## Data Structure Example
+
+Here's a simple example of a valid Excel structure:
+
+| Referrer | Customer | Sales | Referrer_Lat | Referrer_Lng | Customer_Lat | Customer_Lng |
+|----------|----------|-------|--------------|--------------|--------------|-------------|
+| Alice    | Bob      | 150   | 40.7128      | -74.0060     | 34.0522      | -118.2437   |
+| Alice    | Carol    | 200   | 40.7128      | -74.0060     | 41.8781      | -87.6298    |
+| Bob      | Dave     | 100   | 34.0522      | -118.2437    | 29.7604      | -95.3698    |
+| Carol    | Eve      | 300   | 41.8781      | -87.6298     | 37.7749      | -122.4194   |
+
+<Steps>
+  <Step title="Origin = Referrer">
+    Select "Referrer" as your Origin column
+  </Step>
+  <Step title="Destination = Customer">
+    Select "Customer" as your Destination column
+  </Step>
+  <Step title="Weight = Sales (optional)">
+    Select "Sales" to weight connections by sales value
+  </Step>
+  <Step title="Coordinates (optional)">
+    Map the latitude/longitude columns to enable geographic visualization
+  </Step>
+</Steps>
+
+## Multi-Sheet Files
+
+<Accordion title="Handling Multiple Sheets">
+  If your Excel file contains multiple sheets:
+  
+  1. After selecting the file, a prompt will appear
+  2. Choose which sheet contains your network data
+  3. Only one sheet can be processed at a time
+  
+  <Note>
+    Sheet selection happens via a browser prompt listing all available sheet names.
+  </Note>
+</Accordion>
+
+## Data Processing
+
+### Edge Aggregation
+
+The application automatically aggregates duplicate origin→destination pairs:
+
+```javascript
+// Example: These three rows in your Excel...
+Alice → Bob, weight: 10
+Alice → Bob, weight: 15
+Alice → Bob, weight: 5
+
+// ...become one aggregated edge:
+Alice → Bob, weight: 30, count: 3
+```
+
+### Node Identification
+
+- **Nodes** are identified by unique values in Origin and Destination columns
+- **Case-sensitive**: "Alice" and "alice" are treated as different nodes
+- **Whitespace is trimmed**: Leading/trailing spaces are removed
+- **Empty values are skipped**: Rows with blank origin or destination are ignored
+
+## Best Practices
+
+<Warning>
+  **Column Name Conflicts**: Origin and Destination columns must be different. If you select the same column for both, the app will display a warning and reset the selection.
+</Warning>
+
+### Data Quality Tips
+
+1. **Consistent naming**: Use the same spelling and capitalization for each node
+2. **Clean data**: Remove extra spaces, special characters that might cause confusion
+3. **Numeric coordinates**: Ensure lat/lng columns contain valid decimal numbers
+   - Latitude: -90 to 90
+   - Longitude: -180 to 180
+4. **Reasonable file size**: While the app runs in-browser, very large files (>10MB) may be slow
+
+### Column Naming Suggestions
+
+<CodeGroup>
+```text Referral Network
+Origin: Referrer_Name
+Destination: Customer_Name
+Weight: Referral_Count
+```
+
+```text Supply Chain
+Origin: Supplier
+Destination: Manufacturer  
+Weight: Units_Shipped
+```
+
+```text Communication Network
+Origin: Sender
+Destination: Receiver
+Weight: Message_Count
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<Accordion title="File Won't Load">
+  - Ensure the file has a `.xlsx` extension (not `.xls` or `.csv`)
+  - Check that the first row contains headers
+  - Verify the file isn't corrupted
+  - Try serving the app over HTTP (not `file://`) to avoid CORS issues with CDN libraries
+</Accordion>
+
+<Accordion title="No Data Appears After Column Selection">
+  - Verify Origin and Destination columns contain non-empty values
+  - Check browser console for errors (F12 → Console tab)
+  - Ensure columns are different (can't use same column for Origin and Destination)
+</Accordion>
+
+<Accordion title="Map Doesn't Show">
+  - Confirm you've selected latitude and longitude columns
+  - Verify coordinate columns contain numeric values (not text)
+  - Check that coordinates are in decimal degrees format
+  - Ensure at least some rows have valid coordinates for both origin and destination
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Column Mapping" icon="arrows-split-up-and-left" href="/guides/column-mapping">
+    Learn how to map your columns to visualizations
+  </Card>
+  <Card title="Filtering Data" icon="filter" href="/guides/filtering">
+    Discover how to filter and focus your visualizations
+  </Card>
+</CardGroup>

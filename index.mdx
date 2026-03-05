@@ -1,97 +1,101 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Network Analysis"
+description: "Interactive client-side web application for visualizing and analyzing network relationships from Excel data"
 ---
 
-## Setting up
+<div style={{
+  background: 'linear-gradient(135deg, #1c3c44 0%, #2a5661 100%)',
+  padding: '3rem 2rem',
+  borderRadius: '8px',
+  marginBottom: '2rem',
+  color: 'white'
+}}>
+  <h1 style={{
+    fontSize: '2.5rem',
+    fontWeight: '700',
+    marginBottom: '1rem',
+    color: 'white'
+  }}>Network Analysis</h1>
+  <p style={{
+    fontSize: '1.25rem',
+    marginBottom: '2rem',
+    opacity: 0.95
+  }}>
+    Visualize and analyze network relationships with interactive Sankey diagrams, force-directed graphs, ego networks, and geographic maps—all running client-side in your browser.
+  </p>
+  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+    <a href="/quickstart" style={{
+      background: '#fcc72c',
+      color: '#1c3c44',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      fontWeight: '600',
+      textDecoration: 'none',
+      display: 'inline-block'
+    }}>Get Started</a>
+    <a href="https://github.com/moafar/network-analysis" style={{
+      background: 'rgba(255, 255, 255, 0.1)',
+      color: 'white',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      fontWeight: '600',
+      textDecoration: 'none',
+      display: 'inline-block',
+      border: '1px solid rgba(255, 255, 255, 0.2)'
+    }}>View on GitHub</a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Network Analysis is a powerful client-side application that processes Excel files directly in your browser—no backend required.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Client-Side Processing" icon="browser" color="#fcc72c">
+    Upload Excel files and process them entirely in your browser with no server required
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Four Visualization Types" icon="chart-network" color="#fcc72c">
+    Sankey diagrams, force-directed networks, ego networks, and geographic maps
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Real-Time Filtering" icon="filter" color="#fcc72c">
+    Filter by origin, destination, and custom columns to focus on specific relationships
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Geographic Visualization" icon="map" color="#fcc72c">
+    Plot connections on interactive maps with coordinate support and cost analysis
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Visualization Types
 
-Everything you need to create world-class documentation.
+Explore relationships in your data with four powerful visualization modes:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="Sankey Diagram" icon="diagram-project" href="/visualizations/sankey">
+    Flow-based visualization showing volume of connections between nodes with filtering and zoom controls
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Gravitational Network" icon="circle-nodes" href="/visualizations/network">
+    Force-directed graph layout with weight-scaled nodes and edges powered by vis-network
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Ego Networks" icon="users" href="/visualizations/ego-networks">
+    Compare up to 4 destination networks side-by-side in a quad-panel view
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Geographic Map" icon="earth-americas" href="/visualizations/geographic-map">
+    Map-based visualization with arcs between locations and optional cost mode analysis
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Quick Start
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Get up and running in minutes:
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Set up and load your first dataset in under 5 minutes
+  </Card>
+  <Card title="Data Format" icon="file-spreadsheet" href="/guides/data-format">
+    Learn about Excel file structure and column requirements
+  </Card>
+  <Card title="Deployment" icon="cloud-arrow-up" href="/guides/deployment">
+    Deploy your own instance with static hosting
+  </Card>
+</CardGroup>

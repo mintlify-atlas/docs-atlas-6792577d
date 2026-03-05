@@ -1,80 +1,237 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with Network Analysis in under 5 minutes
 ---
 
-## Get started in three steps
+Get up and running with Network Analysis quickly and start visualizing your network data.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- A modern web browser (Chrome, Firefox, Safari, or Edge)
+- An Excel file (`.xlsx`) with network relationship data
+- A local web server to serve the files (options provided below)
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Your Excel file should have at least two columns: one for **origin** nodes and one for **destination** nodes. Weight and coordinate columns are optional.
 </Note>
+
+## Installation
+
+<Steps>
+  <Step title="Get the application">
+    Clone the repository or download the source files:
+
+    ```bash
+    git clone https://github.com/moafar/network-analysis.git
+    cd network-analysis
+    ```
+
+    The application consists of just 4 files:
+    - `index.html` - Main layout and UI structure
+    - `app.js` - Core logic and visualization rendering
+    - `presentation.js` - Event handlers and UI interactions
+    - `styles.css` - Visual styling
+
+    <Note>
+      All dependencies (D3, vis-network, Leaflet, SheetJS) are loaded from CDN - no installation required!
+    </Note>
+  </Step>
+
+  <Step title="Start a local server">
+    You need to serve the files via HTTP (not `file://`) to avoid CORS issues with CDN libraries.
+
+    Choose one of these methods:
+
+    <CodeGroup>
+    ```bash Python
+    python3 -m http.server 8000
+    ```
+
+    ```bash Node.js
+    npx serve .
+    ```
+
+    ```bash PHP
+    php -S localhost:8000
+    ```
+    </CodeGroup>
+
+    <Info>
+      Using VS Code? Install the "Live Server" extension and right-click `index.html` → "Open with Live Server"
+    </Info>
+  </Step>
+
+  <Step title="Open in browser">
+    Navigate to the local server URL:
+    
+    ```
+    http://localhost:8000
+    ```
+
+    You should see the Network Analysis interface with a sidebar for data loading and column mapping.
+  </Step>
+</Steps>
+
+## Load Your First Dataset
+
+<Steps>
+  <Step title="Click Load Excel">
+    Click the **Load Excel** button in the sidebar and select your `.xlsx` file.
+
+    <Info>
+      If your Excel file has multiple sheets, you'll be prompted to select one.
+    </Info>
+  </Step>
+
+  <Step title="Map columns">
+    After loading, use the dropdown menus to map your data columns:
+
+    - **Origin** - The source node column (required)
+    - **Destination** - The target node column (required)  
+    - **Weight** - Optional numeric column for edge weights (auto-counts if not specified)
+    - **Coordinates** - Optional lat/lng columns for geographic visualization
+
+    <Warning>
+      Origin and Destination columns cannot be the same. Select different columns for each.
+    </Warning>
+  </Step>
+
+  <Step title="Explore visualizations">
+    Once columns are mapped, visualizations generate automatically. Switch between tabs to explore:
+
+    - **Sankey** - Flow diagram showing volume of connections
+    - **Gravitational Network** - Force-directed graph layout
+    - **Ego Networks** - Compare up to 4 destinations side-by-side
+    - **Geographic Map** - Map view with arcs (requires coordinate columns)
+  </Step>
+</Steps>
+
+## Your First Visualization
+
+Let's walk through a simple example with referral network data:
+
+### Example Data Structure
+
+Your Excel file should look like this:
+
+| Origin Hospital | Destination Hospital | Referrals |
+|----------------|---------------------|-----------|
+| Hospital A | Hospital B | 15 |
+| Hospital A | Hospital C | 8 |
+| Hospital B | Hospital D | 22 |
+| Hospital C | Hospital D | 12 |
+
+### Mapping and Viewing
+
+1. **Load the file** - Click Load Excel and select your file
+2. **Map columns**:
+   - Origin → "Origin Hospital"
+   - Destination → "Destination Hospital"
+   - Weight → "Referrals"
+3. **View Sankey diagram** - See flows between hospitals with edge width proportional to referrals
+4. **Apply filters** - Use the origin/destination dropdowns to focus on specific hospitals
+5. **Adjust Top-N** - Use the slider to show only the top 50 connections (or any number 5-500)
+
+## Visualization Controls
+
+Each visualization has specific controls in the toolbar:
+
+### Sankey & Network
+- **Top-N Slider** - Limit displayed edges (5-500)
+- **Origin Filter** - Show only edges from selected origins
+- **Destination Filter** - Show only edges to selected destinations
+- **Zoom Controls** - +/- buttons and reset
+
+### Ego Networks
+- **Destination Dropdowns** - Select up to 4 destinations to compare
+- Each panel shows the 1-hop neighborhood around that destination
+
+### Geographic Map
+- **Origin/Destination Filters** - Same as Sankey/Network
+- **Color By** - Group nodes by a data column
+- **Cost Mode** - Toggle to show distance × weight (arc width = spatial cost)
+- **Interactive Legend** - Click legend items to filter by group
+
+## Statistics Display
+
+Every visualization shows real-time statistics:
+
+<CardGroup cols={2}>
+  <Card title="Sankey & Network" icon="chart-line">
+    - Displayed links / Total links
+    - Displayed weight / Total weight
+    - Percentage of total shown
+  </Card>
+
+  <Card title="Ego Networks" icon="users">
+    - Neighbors count per destination
+    - Edges in ego network
+    - Total referrals
+  </Card>
+</CardGroup>
+
+## Tips for Best Results
+
+<AccordionGroup>
+  <Accordion title="Performance with large datasets">
+    If your Excel file has thousands of edges:
+    - Use Top-N filters to show only the most important connections
+    - Apply origin/destination filters to focus on specific nodes
+    - Start with Sankey or Ego Networks (faster than full Network graph)
+  </Accordion>
+
+  <Accordion title="Geographic visualization requirements">
+    To use the Geographic Map tab:
+    - Your data must include latitude and longitude columns for both origins and destinations
+    - Select all 4 coordinate columns in the sidebar: Origin Lat, Origin Lng, Dest Lat, Dest Lng
+    - Coordinates should be in decimal degrees (e.g., 41.8781, -87.6298)
+  </Accordion>
+
+  <Accordion title="Understanding auto-weight counting">
+    If you don't specify a Weight column:
+    - The app counts occurrences of each (origin, destination) pair
+    - Example: If "Hospital A → Hospital B" appears 3 times, weight = 3
+    - Useful for raw transaction logs where each row is one referral/event
+  </Accordion>
+
+  <Accordion title="Interpreting node colors">
+    - **Sankey**: Nodes colored by their role (origins vs destinations)
+    - **Network**: Uses D3 category10 color scale cycling through nodes
+    - **Ego Networks**: Central destination in blue, neighbors in orange
+    - **Map**: Circle = origin only, Square = destination only, Diamond = both
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<Warning>
+  **"XLSX library not loaded"** - You must serve files via HTTP, not open directly with `file://`. Use one of the local server methods above.
+</Warning>
+
+<Warning>
+  **Blank visualizations after loading** - Ensure both Origin and Destination columns are mapped and are different columns.
+</Warning>
+
+<Info>
+  **Map not showing** - Check that all 4 coordinate columns are selected and contain valid numeric lat/lng values.
+</Info>
+
+## Next Steps
+
+Now that you have the basics working, explore advanced features:
+
+<CardGroup cols={3}>
+  <Card title="Data Format Guide" icon="table" href="/guides/data-format">
+    Learn about Excel file requirements and data structure best practices
+  </Card>
+
+  <Card title="Filtering Guide" icon="filter" href="/guides/filtering">
+    Master filtering techniques across all visualization types
+  </Card>
+
+  <Card title="Deployment Guide" icon="rocket" href="/guides/deployment">
+    Deploy your own instance to GitHub Pages, Netlify, or other hosting
+  </Card>
+</CardGroup>

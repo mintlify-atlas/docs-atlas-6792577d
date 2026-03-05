@@ -1,0 +1,353 @@
+---
+title: Network Graph
+description: Interactive force-directed network visualization with physics-based layout
+---
+
+The Network Graph uses the **vis-network** library to render an interactive, physics-based visualization where nodes repel each other and edges act as springs, creating an organic layout that reveals network structure.
+
+## Overview
+
+This gravitational force-directed network visualization features:
+- **Weighted nodes** - Size scaled by total referrals (incoming + outgoing)
+- **Weighted edges** - Width proportional to edge weight
+- **Physics simulation** - Nodes stabilize into natural clusters
+- **Neighborhood highlighting** - Click nodes to explore connections
+- **Interactive zoom/pan** - Smooth navigation controls
+
+<Info>
+  The force-directed layout automatically positions nodes to minimize edge crossings and reveal community structure.
+</Info>
+
+## When to Use
+
+Choose the Network Graph when you need to:
+- Explore the overall topology and structure of connections
+- Identify clusters and communities within the network
+- See which nodes are central vs. peripheral
+- Understand bidirectional relationships
+- Investigate network density in different regions
+
+<Note>
+  For very large networks (500+ edges), use Top-N filtering to maintain performance and readability.
+</Note>
+
+## Key Features
+
+### Force-Directed Physics
+
+The network uses the **Barnes-Hut** algorithm for efficient force simulation:
+
+```javascript
+// Physics configuration - app.js:1499-1515
+physics: {
+    enabled: true,
+    barnesHut: {
+        gravitationalConstant: -8000,  // Repulsion between nodes
+        centralGravity: 0.5,           // Pull toward center
+        springLength: 250,             // Preferred edge length
+        springConstant: 0.02,          // Edge "stiffness"
+        damping: 0.95,                 // Velocity decay
+        avoidOverlap: 0.2              // Node collision avoidance
+    },
+    stabilization: {
+        enabled: true,
+        iterations: 200,               // Initial layout steps
+        fit: true                      // Auto-zoom to fit all nodes
+    }
+}
+```
+
+The physics engine runs during initial layout, then automatically stops to prevent continuous jitter.
+
+### Node Sizing
+
+Nodes are sized proportionally to their **total referrals** (sum of incoming + outgoing edge weights):
+
+```javascript
+// Node size calculation - app.js:1414-1436
+displayedEdges.forEach(edge => {
+    degree[fromId] += edge.value;  // Outgoing referrals
+    degree[toId] += edge.value;    // Incoming referrals
+});
+
+// Scale node size from 15 to 100
+const size = 15 + ((totalDerivations - minDegree) / degreeDelta) * 85;
+```
+
+<Tabs>
+  <Tab title="Large nodes">
+    High-traffic nodes with many or heavy connections
+  </Tab>
+  <Tab title="Small nodes">
+    Peripheral nodes with fewer or lighter connections
+  </Tab>
+  <Tab title="Isolated nodes">
+    Not displayed (only nodes with connections in filtered data appear)
+  </Tab>
+</Tabs>
+
+### Edge Width Scaling
+
+Edge width represents connection weight, scaled from 0.5 to 5 pixels:
+
+```javascript
+// Edge width calculation - app.js:1456-1465
+const edgeValues = displayedEdges.map(e => e.value);
+const minEdgeValue = Math.min(...edgeValues);
+const maxEdgeValue = Math.max(...edgeValues);
+
+// Scale width from 0.5 to 5
+const width = 0.5 + ((edge.value - minEdgeValue) / edgeDelta) * 4.5;
+```
+
+Edges are also colored to match their **source node** for easy tracing of outgoing connections.
+
+### Top-N Filtering
+
+Control network complexity by limiting displayed edges:
+
+```javascript
+// Default Top-N - app.js:29
+networkTopN: 100,  // Show top 100 edges by weight
+
+// Update function - app.js:989-996
+function updateNetworkTopN(value) {
+    appState.networkTopN = parseInt(value, 10);
+    renderNetwork();
+}
+```
+
+<Steps>
+  <Step title="Set the slider">
+    Range: 5-500 edges. Default: 100
+  </Step>
+  <Step title="Apply filters">
+    Use origin/destination dropdowns to narrow the view
+  </Step>
+  <Step title="Monitor statistics">
+    Check toolbar for displayed vs. total links and weights
+  </Step>
+</Steps>
+
+### Neighborhood Highlighting
+
+Click any node to highlight its immediate neighbors:
+
+```javascript
+// Highlight function - app.js:1544-1602
+const neighbourhoodHighlight = (params) => {
+    if (params.nodes.length > 0) {
+        const selectedNode = params.nodes[0];
+        const connectedNodes = window.networkInstance.getConnectedNodes(selectedNode);
+        
+        // Dim all nodes
+        for (let nodeId in allNodesObj) {
+            allNodesObj[nodeId].color = "rgba(200,200,200,0.5)";
+            allNodesObj[nodeId].label = undefined;  // Hide labels
+        }
+        
+        // Restore connected nodes
+        connectedNodes.forEach(id => {
+            allNodesObj[id].color = nodeColors[id];
+            allNodesObj[id].label = allNodesObj[id].hiddenLabel;
+        });
+    }
+};
+```
+
+<Info>
+  When a node is selected, disconnected nodes fade to gray and their labels hide, making the neighborhood structure clear.
+</Info>
+
+## Interactive Controls
+
+<CardGroup cols={3}>
+  <Card title="Top-N Edges" icon="sliders">
+    Slider: 5-500
+    
+    Default: 100 edges
+  </Card>
+  <Card title="Origin Filter" icon="filter">
+    Show only edges from selected origin
+    
+    Select "All" to reset
+  </Card>
+  <Card title="Destination Filter" icon="filter">
+    Show only edges to selected destination
+    
+    Select "All" to reset
+  </Card>
+</CardGroup>
+
+### Zoom Controls
+
+```javascript
+// Zoom functions - app.js:1016-1026
+function networkZoom(factor) {
+    const currentZoom = window.networkInstance.getScale();
+    window.networkInstance.setOptions({ physics: false });
+    window.networkInstance.moveTo({ scale: currentZoom * factor });
+}
+
+function networkZoomReset() {
+    window.networkInstance.fit();  // Auto-fit all nodes
+}
+```
+
+- **− button**: Zoom out (scale × 0.8)
+- **+ button**: Zoom in (scale × 1.2)
+- **Reset button**: Fit all nodes in view
+- **Mouse wheel**: Smooth continuous zoom
+- **Drag**: Pan across the network
+
+## Implementation Details
+
+### Core Rendering Function
+
+The `renderNetwork()` function (app.js:1339) performs the following:
+
+<Steps>
+  <Step title="Filter edges">
+    Apply origin/dest filters and take top-N by weight
+  </Step>
+  <Step title="Build node list">
+    Extract unique nodes from filtered edges
+  </Step>
+  <Step title="Calculate degrees">
+    Sum incoming + outgoing weights for each node
+  </Step>
+  <Step title="Map to vis-network format">
+    Create nodes array with id, label, size, color, title
+    
+    Create edges array with from, to, width, arrows
+  </Step>
+  <Step title="Initialize vis.Network">
+    Create instance with physics and interaction options
+  </Step>
+  <Step title="Attach event handlers">
+    Set up click handlers for neighborhood highlighting
+  </Step>
+</Steps>
+
+### Node Data Structure
+
+```javascript
+// Node creation - app.js:1441-1453
+nodesArray.push({
+    id: numId,                                      // Numeric ID (0, 1, 2, ...)
+    label: nodeName,                                // Display name
+    title: `${nodeName} - Referrals: ${total}`,    // Hover tooltip
+    size: size,                                     // 15-100 based on degree
+    color: {
+        background: color,
+        border: color,
+        highlight: { background: color, border: color }
+    },
+    shape: 'dot'                                    // Circular nodes
+});
+```
+
+### Edge Data Structure
+
+```javascript
+// Edge creation - app.js:1471-1488
+edgesArray.push({
+    id: idx,
+    from: fromId,
+    to: toId,
+    value: edge.value,
+    width: width,                                   // 0.5-5 pixels
+    title: `${source} → ${target}<br/>Referrals: ${value}`,
+    arrows: 'to',                                   // Directed edges
+    color: {
+        color: edgeColor,                          // Match source node
+        highlight: edgeColor,
+        opacity: 0.6
+    },
+    smooth: { type: 'continuous' }                 // Curved edges
+});
+```
+
+### Color Assignment
+
+Nodes are colored using D3's category color scheme:
+
+```javascript
+// Color scale - app.js:1404
+const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+// Applied to nodes
+const color = colorScale(nodeName);
+nodeColors[numId] = color;  // Store for highlight restoration
+```
+
+Edges inherit the color of their **source node**, making it easy to trace outflows.
+
+## Interaction Modes
+
+<AccordionGroup>
+  <Accordion title="Node selection">
+    **Click a node** to:
+    - Highlight the node and its immediate neighbors
+    - Fade out disconnected nodes
+    - Hide labels of non-connected nodes
+    - Click again or click background to deselect
+  </Accordion>
+  
+  <Accordion title="Navigation">
+    - **Drag background**: Pan the view
+    - **Mouse wheel**: Zoom in/out
+    - **Drag nodes**: Nodes are fixed (physics disabled after stabilization)
+  </Accordion>
+  
+  <Accordion title="Information tooltips">
+    - **Hover over node**: See node name and total referrals
+    - **Hover over edge**: See source → destination and referral count
+  </Accordion>
+</AccordionGroup>
+
+## Statistics Display
+
+Real-time network statistics are shown in the toolbar:
+
+```javascript
+// Statistics tracking - app.js:1377-1382
+appState.networkStats = {
+    totalLinks: totalLinksN,           // All edges in dataset
+    totalWeight: totalWeightN,         // Sum of all weights
+    displayedLinks: displayedLinksN,   // Filtered edges shown
+    displayedWeight: displayedWeightN  // Sum of displayed weights
+};
+
+// Format: "Links: 75/500 · Displayed weight: 8,450 / 25,000"
+```
+
+## Best Practices
+
+<Card title="Performance tips" icon="bolt">
+  - Keep Top-N ≤ 200 for smooth interaction
+  - Use filters to focus on specific subnetworks
+  - Let physics stabilize before interacting (initial layout)
+  - Use Reset zoom if the view becomes disoriented
+</Card>
+
+<Card title="Interpretation tips" icon="magnifying-glass">
+  - **Central nodes** = high-degree hubs with many connections
+  - **Clusters** = groups of tightly connected nodes
+  - **Bridges** = nodes connecting different clusters
+  - **Edge density** = indicates strength of relationship
+</Card>
+
+<Card title="Exploration workflow" icon="route">
+  1. Start with Top-N = 100 to see overall structure
+  2. Identify interesting nodes or clusters
+  3. Use filters to isolate specific origins/destinations
+  4. Click nodes to explore their neighborhoods
+  5. Adjust Top-N up/down to control detail level
+</Card>
+
+## Related Visualizations
+
+- [Sankey Diagram](/visualizations/sankey) - Flow-based view of connections
+- [Ego Networks](/visualizations/ego-networks) - Side-by-side comparison of node neighborhoods
+- [Geographic Map](/visualizations/geographic-map) - Spatial view with real coordinates

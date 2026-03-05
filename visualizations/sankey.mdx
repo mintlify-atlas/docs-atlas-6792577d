@@ -1,0 +1,255 @@
+---
+title: Sankey Diagram
+description: Visualize directional network flows between origin and destination nodes
+---
+
+The Sankey diagram provides a high-level view of network flows, showing how connections distribute from origins to destinations with visual flow width proportional to edge weight.
+
+## Overview
+
+The Sankey visualization uses D3.js and the d3-sankey library to render flow diagrams where:
+- **Node height** represents total flow volume (sum of incoming/outgoing edges)
+- **Flow width** is proportional to the edge weight/referrals
+- **Colors** are assigned by destination node
+- **Interactive highlighting** allows exploring node connections
+
+<Info>
+  The Sankey diagram is ideal for understanding overall network structure and identifying major flow pathways.
+</Info>
+
+## When to Use
+
+Use the Sankey diagram when you need to:
+- Visualize directional flows between two distinct groups (e.g., senders → receivers)
+- Identify the largest connections at a glance
+- Understand flow distribution across the network
+- Explore hierarchical relationships
+
+<Note>
+  For large datasets, use the Top-N filter to display only the most significant connections.
+</Note>
+
+## Key Features
+
+### Top-N Filtering
+
+Control the number of displayed edges to focus on the most important connections:
+
+```javascript
+// Set in app.js:437-458
+appState.sankeyTopN = 50; // Default: top 50 edges by weight
+
+// Update dynamically
+function updateSankeyTopN(value) {
+    appState.sankeyTopN = parseInt(value, 10);
+    renderSankey();
+}
+```
+
+<Steps>
+  <Step title="Adjust the slider">
+    Use the **Top-N** slider (range: 5-500) to control how many edges are displayed
+  </Step>
+  <Step title="Filter by origin/destination">
+    Select specific origins or destinations to narrow your view
+  </Step>
+  <Step title="View statistics">
+    Check the toolbar stats to see displayed vs. total links and weights
+  </Step>
+</Steps>
+
+### Origin and Destination Filters
+
+Filter flows by specific origin or destination nodes:
+
+```javascript
+// Filtering logic in renderSankey() - app.js:1097-1102
+let filteredEdges = appState.aggregatedEdges.slice();
+
+if (appState.sankeyOriginFilter) {
+    filteredEdges = filteredEdges.filter(e => e.source === appState.sankeyOriginFilter);
+}
+if (appState.sankeyDestFilter) {
+    filteredEdges = filteredEdges.filter(e => e.target === appState.sankeyDestFilter);
+}
+```
+
+The dropdowns are automatically populated with unique values from your dataset.
+
+### Zoom and Pan
+
+Interactive zoom controls powered by D3's zoom behavior:
+
+```javascript
+// Zoom functions in app.js:925-940
+function sankeyZoom(scale) {
+    d3.select(sankeyState.svgElement)
+        .transition()
+        .duration(200)
+        .call(sankeyState.zoomBehavior.scaleBy, scale);
+}
+
+function sankeyZoomReset() {
+    sankeyState.zoomTransform = d3.zoomIdentity;
+    d3.select(sankeyState.svgElement)
+        .transition()
+        .duration(250)
+        .call(sankeyState.zoomBehavior.transform, sankeyState.zoomTransform);
+}
+```
+
+<Tabs>
+  <Tab title="Mouse wheel">
+    Scroll to zoom in/out on the diagram
+  </Tab>
+  <Tab title="Zoom buttons">
+    - **+** button: Zoom in (scale × 1.2)
+    - **−** button: Zoom out (scale × 0.833)
+    - **Reset** button: Return to default view
+  </Tab>
+  <Tab title="Drag">
+    Click and drag the background to pan across the visualization
+  </Tab>
+</Tabs>
+
+### Node Interaction
+
+Click nodes or labels to highlight their connections:
+
+```javascript
+// Click handler in renderSankey() - app.js:1230-1278
+const handleNodeClick = function(event, d) {
+    if (selectedNode === d.name) {
+        // Deselect - restore all opacities
+        links.transition().duration(300).attr('stroke-opacity', 0.55);
+        node.transition().duration(300).attr('opacity', 1);
+    } else {
+        // Select - highlight connected flows
+        links.transition().duration(300)
+            .attr('stroke-opacity', link => {
+                if (link.source.name === selectedNode || link.target.name === selectedNode) {
+                    return 0.8; // Highlight connected
+                } else {
+                    return 0.08; // Dim others
+                }
+            });
+    }
+};
+```
+
+- **Click node/label**: Highlight all connected flows and nodes
+- **Click again**: Deselect and restore full view
+- **Click background**: Deselect current node
+- **Hover**: View tooltip with node name and total flow volume
+
+## Interactive Controls
+
+<CardGroup cols={3}>
+  <Card title="Top-N Slider" icon="sliders">
+    Range: 5-500 edges
+    
+    Default: 50
+  </Card>
+  <Card title="Origin Filter" icon="filter">
+    Dropdown with all unique origin values
+    
+    Select "All" to reset
+  </Card>
+  <Card title="Destination Filter" icon="filter">
+    Dropdown with all unique destination values
+    
+    Select "All" to reset
+  </Card>
+</CardGroup>
+
+## Implementation Details
+
+### Core Rendering Function
+
+The `renderSankey()` function (app.js:1075) handles the complete visualization pipeline:
+
+<Steps>
+  <Step title="Data Preparation">
+    Filters edges by origin/dest, sorts by weight, takes top-N
+  </Step>
+  <Step title="Node Extraction">
+    Builds unique node list from filtered edges
+  </Step>
+  <Step title="Sankey Layout">
+    Uses d3.sankey() to compute node positions and flow paths
+  </Step>
+  <Step title="SVG Rendering">
+    Draws links (flows), nodes (rectangles), and labels
+  </Step>
+  <Step title="Interaction Setup">
+    Attaches zoom behavior and click handlers
+  </Step>
+</Steps>
+
+### Layout Configuration
+
+```javascript
+// Sankey layout settings - app.js:1161-1165
+const sankey = d3.sankey()
+    .nodeId(d => d.name)
+    .nodeWidth(15)           // Node rectangle width
+    .nodePadding(20)         // Vertical spacing between nodes
+    .extent([[1, 1], [width - 1, height - 1]]);
+```
+
+### Color Scheme
+
+Flows are colored by their **destination node** using D3's category color scale:
+
+```javascript
+// Color assignment - app.js:1177
+const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+// Applied to links - app.js:1191
+.attr('stroke', d => colorScale(d.target.name))
+```
+
+## Statistics Display
+
+The visualization shows real-time statistics:
+
+```javascript
+// Statistics in app.js:1113-1125
+appState.sankeyStats = {
+    totalLinks,           // All edges in dataset
+    totalWeight,          // Sum of all edge weights
+    displayedLinks,       // Edges shown after filtering
+    displayedWeight       // Sum of displayed edge weights
+};
+
+// Displayed as:
+// "Links: 45/500 · Displayed weight: 12,450 / 50,000"
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Optimize for readability">
+    - Start with Top-N = 50 for initial exploration
+    - Increase gradually if you need more detail
+    - Use filters to focus on specific origins or destinations
+  </Accordion>
+  
+  <Accordion title="Interpret node positions">
+    - Nodes on the **left** are primarily origins (more outgoing flows)
+    - Nodes on the **right** are primarily destinations (more incoming flows)
+    - **Node height** = total flow volume through that node
+  </Accordion>
+  
+  <Accordion title="Explore interactively">
+    - Click nodes to trace their connections
+    - Hover over flows to see exact origin → destination → weight
+    - Zoom in on dense areas for better visibility
+  </Accordion>
+</AccordionGroup>
+
+## Related Visualizations
+
+- [Network](/visualizations/network) - Force-directed layout showing all connections
+- [Ego Networks](/visualizations/ego-networks) - Compare multiple nodes' neighborhoods side-by-side
+- [Geographic Map](/visualizations/geographic-map) - View flows on an interactive map

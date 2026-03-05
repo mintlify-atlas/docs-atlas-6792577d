@@ -1,0 +1,306 @@
+---
+title: 'Column Mapping'
+description: 'Map your Excel columns to create powerful network visualizations'
+icon: 'arrows-split-up-and-left'
+---
+
+## Overview
+
+After loading your Excel file, you need to tell Network Analysis which columns represent origins, destinations, weights, and coordinates. This mapping determines how your data is visualized across all four visualization types.
+
+## Accessing Column Mapping
+
+The column mapping controls are located in the **sidebar panel** on the left side of the screen:
+
+<Steps>
+  <Step title="Load Your Excel File">
+    Click **Load Excel** and select your `.xlsx` file
+  </Step>
+  <Step title="Select Sheet (if needed)">
+    If your file has multiple sheets, choose one from the prompt
+  </Step>
+  <Step title="View Available Columns">
+    All column headers from your Excel file now appear in the mapping dropdowns
+  </Step>
+</Steps>
+
+<Note>
+  The sidebar can be toggled using the hamburger menu button (☰) in the top-left corner.
+</Note>
+
+## Required Mappings
+
+### Origin Column
+
+<Accordion title="What is the Origin column?">
+  The **Origin** column identifies the **source node** in each relationship:
+  
+  - In a referral network: the person making the referral
+  - In a supply chain: the supplier or manufacturer
+  - In a communication network: the message sender
+  - In geographic flows: the departure location
+  
+  **Selection:**
+  1. Open the **Origin** dropdown in the sidebar
+  2. Choose the column name that represents your source nodes
+  
+  <Warning>
+    Origin and Destination must be different columns. The app will warn you if you select the same column for both.
+  </Warning>
+</Accordion>
+
+### Destination Column
+
+<Accordion title="What is the Destination column?">
+  The **Destination** column identifies the **target node** in each relationship:
+  
+  - In a referral network: the person being referred
+  - In a supply chain: the recipient or distributor
+  - In a communication network: the message receiver
+  - In geographic flows: the arrival location
+  
+  **Selection:**
+  1. Open the **Destination** dropdown in the sidebar
+  2. Choose the column name that represents your target nodes
+</Accordion>
+
+### Automatic Visualization
+
+<Note>
+  As soon as you select both **Origin** and **Destination** columns, the app automatically:
+  
+  - Processes and aggregates your edges
+  - Generates the Sankey diagram
+  - Generates the Gravitational Network
+  - Populates filter dropdowns
+  - Enables the Ego Networks tab
+  
+  You'll see a green success message: **"✓ Configuration valid. Visualizations will update."**
+</Note>
+
+## Optional Mappings
+
+### Weight Column
+
+<Accordion title="Using a Weight Column">
+  By default, the app counts each row as **1 connection**. If you have a numeric column representing the strength or value of each relationship, map it as the **Weight** column:
+  
+  **Example use cases:**
+  - Sales amount
+  - Number of referrals
+  - Message count
+  - Units shipped
+  
+  **How it works:**
+  ```javascript
+  // Without weight column:
+  Alice → Bob (appears 3 times in Excel)
+  Result: edge weight = 3
+  
+  // With weight column:
+  Alice → Bob, weight: 100
+  Alice → Bob, weight: 150
+  Result: edge weight = 250
+  ```
+  
+  <Note>
+    If the Weight column contains non-numeric values, they're treated as weight = 1.
+  </Note>
+</Accordion>
+
+### Coordinate Columns
+
+<Accordion title="Mapping Geographic Coordinates">
+  To enable the **Geographic Map** visualization, you need to provide latitude and longitude columns. You can map coordinates for origins, destinations, or both.
+  
+  #### Origin Coordinates
+  
+  - **Origin Lat**: Latitude of the origin node (decimal degrees, -90 to 90)
+  - **Origin Lng**: Longitude of the origin node (decimal degrees, -180 to 180)
+  
+  #### Destination Coordinates
+  
+  - **Dest Lat**: Latitude of the destination node (decimal degrees, -90 to 90)
+  - **Dest Lng**: Longitude of the destination node (decimal degrees, -180 to 180)
+  
+  <Note>
+    The map will only draw edges where:
+    - The origin node has coordinates from Origin Lat/Lng columns
+    - The destination node has coordinates from Dest Lat/Lng columns
+    
+    Nodes without valid coordinates are excluded from the map (but still appear in other visualizations).
+  </Note>
+  
+  **Example coordinate mapping:**
+  
+  | Column in Excel | Map to |
+  |----------------|--------|
+  | Referrer_Latitude | Origin Lat |
+  | Referrer_Longitude | Origin Lng |
+  | Customer_Latitude | Dest Lat |
+  | Customer_Longitude | Dest Lng |
+</Accordion>
+
+## Column Mapping UI
+
+The sidebar contains three sections:
+
+### 1. Data Source
+```plaintext
+┌─────────────────────────────┐
+│ File: your_file.xlsx        │
+│ [Load Excel]                │
+│ ✓ Loaded: 150 rows, 8 cols  │
+└─────────────────────────────┘
+```
+
+### 2. Column Mapping
+```plaintext
+┌─────────────────────────────┐
+│ Origin:      [Select ▼]     │
+│ Destination: [Select ▼]     │
+│ Weight:      [Automatic ▼]  │
+└─────────────────────────────┘
+```
+
+### 3. Coordinates (optional)
+```plaintext
+┌─────────────────────────────┐
+│ Origin Lat:  [Optional ▼]   │
+│ Origin Lng:  [Optional ▼]   │
+│ Dest Lat:    [Optional ▼]   │
+│ Dest Lng:    [Optional ▼]   │
+└─────────────────────────────┘
+```
+
+## Real-Time Updates
+
+<Note>
+  **Dynamic Re-rendering**: Any change to column mapping instantly re-processes your data and updates all visualizations. This includes:
+  
+  - Changing Origin or Destination columns
+  - Adding or removing a Weight column
+  - Updating coordinate columns
+</Note>
+
+### What Happens Behind the Scenes
+
+When you change column mappings, the app:
+
+<Steps>
+  <Step title="Validates Selection">
+    Ensures Origin ≠ Destination and both are selected
+  </Step>
+  <Step title="Aggregates Edges">
+    Groups rows by unique origin→destination pairs and sums weights
+  </Step>
+  <Step title="Builds Indices">
+    Creates fast lookup tables for outgoing and incoming edges per node
+  </Step>
+  <Step title="Populates Filters">
+    Fills filter dropdowns with unique origin and destination values
+  </Step>
+  <Step title="Renders Visualizations">
+    Updates Sankey, Network, and Map (if coordinates are available)
+  </Step>
+  <Step title="Enables Ego Networks">
+    Populates destination dropdowns for the 4 ego-network panels
+  </Step>
+</Steps>
+
+## Source Code Reference
+
+The column mapping logic is implemented in `app.js:217-293`:
+
+```javascript
+function handleColumnChange() {
+    // Read selected columns from dropdowns
+    appState.originCol = originColEl.value;
+    appState.destCol = destColEl.value;
+    appState.weightCol = weightColEl.value;
+    
+    // Validate: origin ≠ destination
+    if (originCol === destCol && originCol !== '') {
+        showConfig('⚠ Origin and Destination cannot be the same column.', 'warning');
+        return;
+    }
+    
+    // Process and render
+    if (originCol && destCol) {
+        processAggregatedEdges();
+        populateFilters();
+        renderSankey();
+        renderNetwork();
+        if (coordinates available) renderMap();
+    }
+}
+```
+
+See `app.js:339-378` for the edge aggregation algorithm.
+
+## Common Workflows
+
+<CodeGroup>
+```plaintext Simple Referral Network
+1. Load file: referrals.xlsx
+2. Origin: Referrer_Name
+3. Destination: Customer_Name
+4. Weight: (leave as Automatic)
+5. ✓ Visualizations appear
+```
+
+```plaintext Weighted Sales Network
+1. Load file: sales_data.xlsx
+2. Origin: Sales_Rep
+3. Destination: Customer
+4. Weight: Total_Sales
+5. ✓ Edges weighted by sales amount
+```
+
+```plaintext Geographic Flow Map
+1. Load file: shipments.xlsx
+2. Origin: Origin_City
+3. Destination: Dest_City
+4. Weight: Units_Shipped
+5. Origin Lat: Origin_Latitude
+6. Origin Lng: Origin_Longitude
+7. Dest Lat: Dest_Latitude
+8. Dest Lng: Dest_Longitude
+9. ✓ Map tab now shows geographic flows
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<Warning>
+  **"Origin and Destination cannot be the same column"** — You've selected the same column for both. Choose different columns.
+</Warning>
+
+<Accordion title="Visualizations Don't Appear">
+  - Check that **both** Origin and Destination are selected (not "-- Select --")
+  - Look for a success message: **"✓ Configuration valid"**
+  - Open browser console (F12) to check for errors
+</Accordion>
+
+<Accordion title="Weight Values Seem Wrong">
+  - Verify your Weight column contains numeric values
+  - Non-numeric cells are treated as weight = 1
+  - If using automatic counting, each row contributes 1 to the edge weight
+</Accordion>
+
+<Accordion title="Map Tab Shows 'Coordinates not configured'">
+  - You must select **all four** coordinate columns: Origin Lat, Origin Lng, Dest Lat, Dest Lng
+  - Alternatively, select Origin Lat/Lng OR Dest Lat/Lng if your data only has one set
+  - Ensure coordinate columns contain valid decimal numbers
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Format" icon="table" href="/guides/data-format">
+    Learn about Excel file requirements
+  </Card>
+  <Card title="Filtering" icon="filter" href="/guides/filtering">
+    Use filters to focus on specific nodes
+  </Card>
+</CardGroup>

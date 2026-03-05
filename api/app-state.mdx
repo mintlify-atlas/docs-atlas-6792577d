@@ -1,0 +1,281 @@
+---
+title: "App State"
+description: "Global application state object for managing data and visualization settings"
+---
+
+## Overview
+
+The `appState` object is the central state container for the Network Analysis application. It stores all data, configuration, and cached statistics throughout the application lifecycle.
+
+<Note>
+  Defined in `app.js:5-42`
+</Note>
+
+## State Properties
+
+### Data Properties
+
+<ParamField path="file" type="File | null">
+  The uploaded Excel file object from the file input
+</ParamField>
+
+<ParamField path="fileName" type="string">
+  Name of the uploaded file for display purposes
+</ParamField>
+
+<ParamField path="headers" type="string[]">
+  Column headers extracted from the Excel file's first row
+</ParamField>
+
+<ParamField path="rows" type="object[]">
+  Parsed data rows from the Excel sheet, where each row is an object with column headers as keys
+</ParamField>
+
+<ParamField path="sheet" type="string | null">
+  Name of the selected worksheet when the Excel file has multiple sheets
+</ParamField>
+
+### Column Configuration
+
+<ParamField path="originCol" type="string">
+  Name of the column containing origin/source nodes
+</ParamField>
+
+<ParamField path="destCol" type="string">
+  Name of the column containing destination/target nodes
+</ParamField>
+
+<ParamField path="weightCol" type="string">
+  Name of the column containing edge weights. Empty string means automatic counting
+</ParamField>
+
+<ParamField path="originLatCol" type="string">
+  Name of the column containing latitude coordinates for origin nodes
+</ParamField>
+
+<ParamField path="originLngCol" type="string">
+  Name of the column containing longitude coordinates for origin nodes
+</ParamField>
+
+<ParamField path="destLatCol" type="string">
+  Name of the column containing latitude coordinates for destination nodes
+</ParamField>
+
+<ParamField path="destLngCol" type="string">
+  Name of the column containing longitude coordinates for destination nodes
+</ParamField>
+
+### Processed Data
+
+<ParamField path="aggregatedEdges" type="Edge[]">
+  Processed and aggregated edges with structure:
+  ```typescript
+  {
+    source: string,
+    target: string,
+    value: number,    // Sum of weights
+    count: number     // Number of rows aggregated
+  }
+  ```
+</ParamField>
+
+<ParamField path="uniqueNodes" type="Set<string>">
+  Set of all unique node names (both origins and destinations)
+</ParamField>
+
+<ParamField path="isValid" type="boolean">
+  Flag indicating whether the data is valid and ready for visualization
+</ParamField>
+
+### Indices
+
+<ParamField path="outIndex" type="Map<string, Edge[]>">
+  Index mapping source nodes to their outgoing edges for fast lookups
+</ParamField>
+
+<ParamField path="inIndex" type="Map<string, Edge[]>">
+  Index mapping target nodes to their incoming edges for fast lookups
+</ParamField>
+
+<ParamField path="nodeCoordinates" type="Map<string, {lat: number, lng: number}>">
+  Map of node names to their geographic coordinates
+</ParamField>
+
+### Sankey Visualization Settings
+
+<ParamField path="sankeyTopN" type="number" default={50}>
+  Number of top edges to display in the Sankey diagram
+</ParamField>
+
+<ParamField path="sankeyOriginFilter" type="string">
+  Filter to show only edges from a specific origin node
+</ParamField>
+
+<ParamField path="sankeyDestFilter" type="string">
+  Filter to show only edges to a specific destination node
+</ParamField>
+
+<ParamField path="sankeyStats" type="object | null">
+  Cached statistics for the Sankey visualization:
+  ```typescript
+  {
+    totalLinks: number,
+    totalWeight: number,
+    displayedLinks: number,
+    displayedWeight: number
+  }
+  ```
+</ParamField>
+
+### Network Visualization Settings
+
+<ParamField path="networkTopN" type="number" default={100}>
+  Number of top edges to display in the gravitational network
+</ParamField>
+
+<ParamField path="networkOriginFilter" type="string">
+  Filter to show only edges from a specific origin node
+</ParamField>
+
+<ParamField path="networkDestFilter" type="string">
+  Filter to show only edges to a specific destination node
+</ParamField>
+
+<ParamField path="networkStats" type="object | null">
+  Cached statistics for the network visualization:
+  ```typescript
+  {
+    totalLinks: number,
+    totalWeight: number,
+    displayedLinks: number,
+    displayedWeight: number
+  }
+  ```
+</ParamField>
+
+### Map Visualization Settings
+
+<ParamField path="mapOriginFilter" type="string">
+  Filter to show only edges from a specific origin node on the map
+</ParamField>
+
+<ParamField path="mapDestFilter" type="string">
+  Filter to show only edges to a specific destination node on the map
+</ParamField>
+
+<ParamField path="mapColorCol" type="string">
+  Column name to use for color-coding nodes on the map
+</ParamField>
+
+<ParamField path="mapLegendFilter" type="string">
+  Active legend filter for showing specific color groups
+</ParamField>
+
+<ParamField path="mapCostMode" type="boolean" default={false}>
+  Toggle for cost mode: line width = distance × weight
+</ParamField>
+
+<ParamField path="mapStats" type="object | null">
+  Cached statistics for the map visualization:
+  ```typescript
+  {
+    nodes: number,           // Number of georeferenced nodes
+    displayedLinks: number,  // Links with valid coordinates
+    totalLinks: number       // Total links in dataset
+  }
+  ```
+</ParamField>
+
+## Usage Examples
+
+### Accessing State Properties
+
+```javascript
+// Check if data is valid
+if (appState.isValid) {
+  console.log(`Loaded ${appState.rows.length} rows`);
+  console.log(`Found ${appState.uniqueNodes.size} unique nodes`);
+}
+
+// Get aggregated edges
+const edges = appState.aggregatedEdges;
+const totalWeight = edges.reduce((sum, e) => sum + e.value, 0);
+```
+
+### Using Indices for Fast Lookups
+
+```javascript
+// Find all edges going out from a node
+const nodeName = "Node A";
+const outgoingEdges = appState.outIndex.get(nodeName) || [];
+
+// Find all edges coming into a node
+const incomingEdges = appState.inIndex.get(nodeName) || [];
+
+// Calculate total outgoing weight
+const totalOut = outgoingEdges.reduce((sum, e) => sum + e.value, 0);
+```
+
+### Updating Visualization Settings
+
+```javascript
+// Update Sankey settings
+appState.sankeyTopN = 100;
+appState.sankeyOriginFilter = "Node A";
+renderSankey();
+
+// Update Network settings
+appState.networkTopN = 150;
+appState.networkDestFilter = "Node B";
+renderNetwork();
+
+// Enable map cost mode
+appState.mapCostMode = true;
+renderMap();
+```
+
+### Working with Coordinates
+
+```javascript
+// Check if a node has coordinates
+const nodeName = "New York";
+if (appState.nodeCoordinates.has(nodeName)) {
+  const coords = appState.nodeCoordinates.get(nodeName);
+  console.log(`Lat: ${coords.lat}, Lng: ${coords.lng}`);
+}
+
+// Count georeferenced nodes
+const georefCount = appState.nodeCoordinates.size;
+console.log(`${georefCount} nodes have coordinates`);
+```
+
+## State Lifecycle
+
+<Steps>
+  <Step title="Initialization">
+    State is initialized with empty/default values when the page loads
+  </Step>
+  <Step title="File Upload">
+    `handleFileSelect()` populates `file`, `fileName`, and `sheet`
+  </Step>
+  <Step title="Data Parsing">
+    `parseExcelData()` extracts `headers` and `rows`, sets `isValid = true`
+  </Step>
+  <Step title="Column Configuration">
+    User selects columns via UI, triggering `handleColumnChange()`
+  </Step>
+  <Step title="Data Processing">
+    `processAggregatedEdges()` generates `aggregatedEdges`, `uniqueNodes`, and indices
+  </Step>
+  <Step title="Visualization">
+    Render functions use state to generate visualizations and cache statistics
+  </Step>
+</Steps>
+
+## Related Functions
+
+- [`handleFileSelect()`](/api/data-processing#handlefileselect) - Loads file and initializes state
+- [`parseExcelData()`](/api/data-processing#parseexceldata) - Populates headers and rows
+- [`handleColumnChange()`](/api/data-processing#handlecolumnchange) - Updates column configuration
+- [`processAggregatedEdges()`](/api/data-processing#processaggregatededges) - Generates aggregated edges
+- [`buildIndices()`](/api/data-processing#buildindices) - Creates index structures

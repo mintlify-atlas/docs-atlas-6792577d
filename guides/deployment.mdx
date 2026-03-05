@@ -1,0 +1,505 @@
+---
+title: 'Deployment Guide'
+description: 'Deploy your own instance of Network Analysis to any static hosting platform'
+icon: 'rocket'
+---
+
+## Overview
+
+Network Analysis is a **100% client-side application**—it consists of static HTML, CSS, and JavaScript files with no backend required. This makes deployment extremely simple: just serve the files with any web server or static hosting service.
+
+<Note>
+  All data processing happens in the browser using JavaScript libraries loaded from CDNs. No data is sent to a server.
+</Note>
+
+## Quick Start (Local Development)
+
+The fastest way to run Network Analysis locally:
+
+<CodeGroup>
+```bash Python
+python3 -m http.server 8000
+# Then open http://localhost:8000
+```
+
+```bash Node.js
+npx serve .
+# Automatically opens in browser
+```
+
+```bash PHP
+php -S localhost:8000
+# Then open http://localhost:8000
+```
+</CodeGroup>
+
+<Warning>
+  **Do not open `index.html` directly via `file://` protocol.** This will cause CORS errors when loading CDN libraries. Always use an HTTP server.
+</Warning>
+
+## Project Structure
+
+The application consists of these files:
+
+```plaintext
+network-analysis/
+├── index.html        # Main layout, tabs, CDN imports
+├── app.js            # Core logic: data processing, rendering
+├── presentation.js   # Event listeners, UI interactions
+├── styles.css        # All styling
+└── README.md         # Project documentation
+```
+
+<Accordion title="File Descriptions">
+  **`index.html`** (203 lines)  
+  - HTML structure for sidebar, tabs, and visualization containers
+  - Loads all dependencies via CDN links:
+    - SheetJS (XLSX) for Excel parsing
+    - D3.js + d3-sankey for Sankey diagrams
+    - vis-network for force-directed graphs
+    - Leaflet for geographic maps
+  
+  **`app.js`** (2,160 lines)  
+  - Global app state (`appState` object)
+  - File loading and Excel parsing
+  - Column mapping logic
+  - Data aggregation and indexing
+  - Rendering functions for all 4 visualizations
+  - Filter update handlers
+  
+  **`presentation.js`** (~90 lines)  
+  - Event delegation for user interactions
+  - Separates presentation layer from business logic
+  
+  **`styles.css`**  
+  - Layout: sidebar, tabs, toolbars
+  - Visualization container styling
+  - Responsive design
+</Accordion>
+
+## Deployment Options
+
+### Option 1: GitHub Pages
+
+Ideal for open-source projects or public demos.
+
+<Steps>
+  <Step title="Create a GitHub Repository">
+    Push your files to a new repository:
+    ```bash
+    git init
+    git add index.html app.js presentation.js styles.css README.md
+    git commit -m "Initial commit"
+    git branch -M main
+    git remote add origin https://github.com/yourusername/network-analysis.git
+    git push -u origin main
+    ```
+  </Step>
+  
+  <Step title="Enable GitHub Pages">
+    1. Go to repository **Settings** → **Pages**
+    2. Source: **Deploy from a branch**
+    3. Branch: **main** → **/ (root)**
+    4. Click **Save**
+  </Step>
+  
+  <Step title="Access Your Site">
+    Your app will be available at:
+    ```
+    https://yourusername.github.io/network-analysis/
+    ```
+    
+    GitHub Pages typically deploys within 1-2 minutes.
+  </Step>
+</Steps>
+
+<Note>
+  GitHub Pages is completely free for public repositories. For private repos, you need a GitHub Pro account.
+</Note>
+
+### Option 2: Netlify
+
+Best for continuous deployment with drag-and-drop simplicity.
+
+<Steps>
+  <Step title="Create Netlify Account">
+    Sign up at [netlify.com](https://netlify.com) (free tier available)
+  </Step>
+  
+  <Step title="Deploy via Drag-and-Drop">
+    1. Open [Netlify Drop](https://app.netlify.com/drop)
+    2. Drag your project folder into the drop zone
+    3. Netlify builds and deploys instantly
+  </Step>
+  
+  <Step title="Get Your URL">
+    Netlify provides a random subdomain:
+    ```
+    https://random-name-12345.netlify.app
+    ```
+    
+    You can customize this in **Site settings** → **Change site name**
+  </Step>
+</Steps>
+
+<Accordion title="Netlify with Git">
+  For continuous deployment:
+  
+  1. Push code to GitHub/GitLab/Bitbucket
+  2. In Netlify: **New site from Git**
+  3. Select repository
+  4. Build settings:
+     - Build command: *(leave empty)*
+     - Publish directory: `.` (current directory)
+  5. Click **Deploy site**
+  
+  Every push to `main` triggers automatic redeployment.
+</Accordion>
+
+### Option 3: Vercel
+
+Ideal for projects already on GitHub with instant deployment.
+
+<Steps>
+  <Step title="Import from GitHub">
+    1. Sign in at [vercel.com](https://vercel.com)
+    2. Click **New Project**
+    3. Import your repository
+  </Step>
+  
+  <Step title="Configure (minimal)">
+    Vercel auto-detects static sites:
+    - Framework Preset: **Other**
+    - Root Directory: `./`
+    - No build command needed
+  </Step>
+  
+  <Step title="Deploy">
+    Click **Deploy** — your app is live in ~30 seconds:
+    ```
+    https://your-project.vercel.app
+    ```
+  </Step>
+</Steps>
+
+### Option 4: AWS S3 + CloudFront
+
+For production deployments with full control.
+
+<Steps>
+  <Step title="Create S3 Bucket">
+    ```bash
+    aws s3 mb s3://network-analysis-app
+    aws s3 website s3://network-analysis-app \
+      --index-document index.html
+    ```
+  </Step>
+  
+  <Step title="Upload Files">
+    ```bash
+    aws s3 sync . s3://network-analysis-app \
+      --exclude ".git/*" \
+      --exclude "README.md"
+    ```
+  </Step>
+  
+  <Step title="Configure Public Access">
+    Bucket Policy:
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Sid": "PublicReadGetObject",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "s3:GetObject",
+        "Resource": "arn:aws:s3:::network-analysis-app/*"
+      }]
+    }
+    ```
+  </Step>
+  
+  <Step title="Optional: CloudFront CDN">
+    1. Create CloudFront distribution
+    2. Origin: your S3 bucket endpoint
+    3. Enable HTTPS
+    4. Add custom domain (requires Route 53 or external DNS)
+  </Step>
+</Steps>
+
+### Option 5: Self-Hosted Server
+
+For internal company networks or on-premise deployments.
+
+<CodeGroup>
+```nginx NGINX
+server {
+    listen 80;
+    server_name network-analysis.company.com;
+    
+    root /var/www/network-analysis;
+    index index.html;
+    
+    location / {
+        try_files $uri $uri/ =404;
+    }
+    
+    # Enable compression
+    gzip on;
+    gzip_types text/html text/css application/javascript;
+}
+```
+
+```apache Apache
+<VirtualHost *:80>
+    ServerName network-analysis.company.com
+    DocumentRoot /var/www/network-analysis
+    
+    <Directory /var/www/network-analysis>
+        Options -Indexes +FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+    
+    # Enable compression
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript
+</VirtualHost>
+```
+</CodeGroup>
+
+## Configuration & Customization
+
+### Updating Library Versions
+
+All dependencies are loaded from CDN in `index.html` (lines 186-196):
+
+```html
+<!-- XLSX Parser -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- D3 and D3-Sankey -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+
+<!-- Vis-Network -->
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+<!-- Leaflet -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+```
+
+<Warning>
+  If you update library versions, test thoroughly—API changes may break existing functionality.
+</Warning>
+
+### Offline Mode (Optional)
+
+To run without internet connectivity:
+
+<Steps>
+  <Step title="Download Libraries">
+    Save all CDN scripts locally:
+    ```bash
+    mkdir libs
+    cd libs
+    curl -O https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
+    curl -O https://d3js.org/d3.v7.min.js
+    # ... download all libraries
+    ```
+  </Step>
+  
+  <Step title="Update index.html">
+    Replace CDN URLs with local paths:
+    ```html
+    <script src="./libs/xlsx.full.min.js"></script>
+    <script src="./libs/d3.v7.min.js"></script>
+    <!-- etc -->
+    ```
+  </Step>
+  
+  <Step title="Test Locally">
+    ```bash
+    python3 -m http.server 8000
+    # Disconnect internet and verify it works
+    ```
+  </Step>
+</Steps>
+
+### Custom Branding
+
+Edit these elements in `index.html` and `styles.css`:
+
+```html
+<!-- index.html line 6 -->
+<title>Your Company - Network Analysis</title>
+
+<!-- Add logo in sidebar -->
+<div class="sidebar-section">
+    <img src="logo.png" alt="Company Logo" style="max-width: 150px;">
+    <h2 class="sidebar-title">Data Source</h2>
+    ...
+</div>
+```
+
+## Security Considerations
+
+<Warning>
+  **Data Privacy**: All Excel files are processed entirely in the user's browser—no data is uploaded to a server. Make this clear to users if handling sensitive data.
+</Warning>
+
+### HTTPS Requirement
+
+For production deployments, always use HTTPS:
+
+- **GitHub Pages**: HTTPS enabled by default
+- **Netlify/Vercel**: Automatic SSL certificates
+- **AWS CloudFront**: Configure ACM certificate
+- **Self-hosted**: Use Let's Encrypt
+
+### Content Security Policy
+
+If you add CSP headers, whitelist CDN domains:
+
+```http
+Content-Security-Policy: 
+  default-src 'self'; 
+  script-src 'self' 
+    https://cdn.jsdelivr.net 
+    https://d3js.org 
+    https://unpkg.com 
+    https://cdnjs.cloudflare.com;
+  style-src 'self' https://cdnjs.cloudflare.com;
+  img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com;
+```
+
+## Performance Optimization
+
+<Accordion title="Enable Compression">
+  Most hosting platforms enable gzip/brotli automatically. For self-hosted:
+  
+  **NGINX:**
+  ```nginx
+  gzip on;
+  gzip_types text/html text/css application/javascript application/json;
+  gzip_min_length 1000;
+  ```
+  
+  **Apache:**
+  ```apache
+  <IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript
+  </IfModule>
+  ```
+</Accordion>
+
+<Accordion title="Browser Caching">
+  Set cache headers for static assets:
+  
+  ```nginx
+  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+      expires 1y;
+      add_header Cache-Control "public, immutable";
+  }
+  ```
+</Accordion>
+
+## Monitoring & Analytics
+
+Since the app is client-side, add analytics via:
+
+### Google Analytics
+
+Add to `index.html` before `</head>`:
+
+```html
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
+```
+
+### Plausible Analytics (Privacy-Friendly)
+
+```html
+<script defer data-domain="yourdomain.com" src="https://plausible.io/js/script.js"></script>
+```
+
+## Troubleshooting
+
+<Accordion title="White Screen / Nothing Loads">
+  **Causes:**
+  - Opened via `file://` instead of HTTP server
+  - CDN libraries blocked by firewall/ad-blocker
+  - JavaScript disabled in browser
+  
+  **Solutions:**
+  1. Always use HTTP server (see Quick Start)
+  2. Check browser console (F12) for errors
+  3. Verify CDN URLs are accessible
+  4. Try different browser
+</Accordion>
+
+<Accordion title="CORS Errors in Console">
+  ```
+  Access to script at 'file://...' from origin 'null' has been blocked by CORS
+  ```
+  
+  **Solution**: Use HTTP server, not `file://` protocol.
+</Accordion>
+
+<Accordion title="Slow Performance with Large Files">
+  - Browser-based processing has limits
+  - Recommend files under 10MB / 10,000 rows
+  - Use Top-N filters aggressively
+  - Consider pre-aggregating data in Excel before loading
+</Accordion>
+
+## Updates & Maintenance
+
+To update your deployed instance:
+
+<Steps>
+  <Step title="Pull Latest Changes">
+    ```bash
+    git pull origin main
+    ```
+  </Step>
+  
+  <Step title="Test Locally">
+    ```bash
+    python3 -m http.server 8000
+    # Verify everything works
+    ```
+  </Step>
+  
+  <Step title="Deploy">
+    - **GitHub Pages**: Push to main branch (auto-deploys)
+    - **Netlify/Vercel**: Push to Git (auto-deploys)
+    - **S3**: `aws s3 sync . s3://bucket-name`
+    - **Self-hosted**: Copy files to web root
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Format" icon="table" href="/guides/data-format">
+    Review Excel file requirements
+  </Card>
+  <Card title="Column Mapping" icon="arrows-split-up-and-left" href="/guides/column-mapping">
+    Learn column mapping workflow
+  </Card>
+</CardGroup>
+
+## Support
+
+For deployment issues:
+
+- Check browser console (F12) for JavaScript errors
+- Verify all CDN libraries load successfully
+- Test with a small sample Excel file first
+- Review README.md in the source repository
