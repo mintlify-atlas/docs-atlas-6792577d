@@ -1,0 +1,76 @@
+{
+  "projectType": "frontend",
+  "projectName": "Network Analysis",
+  "projectDescription": "Interactive client-side web application for visualizing and analyzing network relationships from Excel data with Sankey diagrams, force-directed graphs, ego networks, and geographic maps.",
+  "theme": "palm",
+  "primaryColor": "#fcc72c",
+  "lightColor": "#f5d8d5",
+  "darkColor": "#1c3c44",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Visualizations",
+            "pages": [
+              "visualizations/sankey",
+              "visualizations/network",
+              "visualizations/ego-networks",
+              "visualizations/geographic-map"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/data-format",
+              "guides/column-mapping",
+              "guides/filtering",
+              "guides/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core",
+            "pages": [
+              "api/app-state",
+              "api/data-processing",
+              "api/rendering"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Client-side Excel file processing with no backend required",
+    "Four interactive visualization types (Sankey, Network, Ego, Map)",
+    "Real-time filtering by origin and destination",
+    "Geographic visualization with coordinate support",
+    "Cost mode analysis (distance × weight)",
+    "Ego network comparison across 4 destinations",
+    "Force-directed graph layout with vis-network",
+    "Responsive sidebar controls with collapsible UI"
+  ],
+  "publicApiSurface": [
+    "appState (global state object)",
+    "handleFileSelect() - Excel file loader",
+    "handleColumnChange() - Column mapping handler",
+    "renderSankey() - Sankey diagram renderer",
+    "renderNetwork() - Force-directed network renderer",
+    "updateEgoNetwork(panel) - Ego network renderer",
+    "renderMap() - Geographic map renderer",
+    "processAggregatedEdges() - Edge aggregation",
+    "buildIndices() - Adjacency index builder",
+    "extractNodeCoordinates() - Coordinate extractor",
+    "switchTab(tabName) - Tab navigation"
+  ]
+}
